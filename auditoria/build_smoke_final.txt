@@ -1,0 +1,1 @@
+OK: execut�vel compilado, IPC, login, cadastro, baixa, backup, simula��o, encerramento e reabertura.

@@ -1,0 +1,99 @@
+{
+  "executado_em": "2026-10-01T00:41:32.123643",
+  "python": "3.14.3",
+  "plataforma": "Windows-11-10.0.26200-SP0",
+  "bibliotecas": {
+    "customtkinter": "6.0.0",
+    "pandas": "3.0.6",
+    "matplotlib": "3.11.2",
+    "Pillow": "12.3.0",
+    "pyinstaller": "6.22.3"
+  },
+  "total": 102,
+  "aprovados": 102,
+  "defeitos_reproduzidos": [],
+  "erros_inesperados": [],
+  "falhas_inesperadas": [],
+  "sucessos_inesperados": [],
+  "ignorados": [],
+  "segundos_suite": 2.7910214999865275,
+  "carga_sintetica": {
+    "produtos": 5000,
+    "movimentacoes": 10000,
+    "preparacao_s": 0.37754319999658037,
+    "listar_catalogo": {
+      "segundos": 0.016152699987287633,
+      "registros_ou_chaves": 5000
+    },
+    "buscar_texto": {
+      "segundos": 0.03468799999973271,
+      "registros_ou_chaves": 5000
+    },
+    "listar_historico": {
+      "segundos": 0.03555100000812672,
+      "registros_ou_chaves": 10000
+    },
+    "kpis": {
+      "segundos": 0.005709799996111542,
+      "registros_ou_chaves": 4
+    },
+    "curva_a": {
+      "segundos": 0.011988800004473887,
+      "registros_ou_chaves": 5
+    }
+  },
+  "fontes_app_inalterados_durante_execucao": true,
+  "hashes_fontes": {
+    "config.py": "7db87b20e106a7bcce7ffcbe7765ca81e0b1fa3063d66779b75945ce6b9c3029",
+    "gerar_build.py": "fc5e088f236173842d76d06c9487bcc5c44439c90f6e9d0dd2a2ec9e218cf948",
+    "main.py": "07ba76d5888b3cae4028a4776ca1b51cc1224b76bbb38712167fd7cee714df0c",
+    "1_preparar_ambiente.bat": "a9e69a670e30b727b4fe31494bf08423e657235c8be3e8fd924742b61eb610cf",
+    "2_executar.bat": "7fa401ea05d7933ada82e4e427ac28171044a2b4f1cb5d05ff9979c0cd6fd8c9",
+    "3_gerar_exe.bat": "7276292c181169719bc0defcf2f942962fae5473f4c792355c1e702ee0f242bf",
+    "requirements.txt": "cff5a0dd77cd625659dd3b4a11dd235a9644eecb86592e54dbe16ac157f2c916",
+    "controllers\\controllers.py": "a1e0e73007e1cc6957af8c1fac79f8770a07b3467e67f76353550ac19cc1c767",
+    "controllers\\__init__.py": "f8166641c652b86c951a0f74f1f766e4bfd978d769f2e39ecfee1bc7c4b03a0f",
+    "models\\models.py": "a7cce05cf8233a18681f5277ef0dbeebb54f15b10fe829eeb7e79b6047052c30",
+    "models\\__init__.py": "dc06f855147fa4e8c06163c547da136b9cb0215673b6d34382f55583a143714e",
+    "views\\componentes.py": "2cd03797b57ad6713cf9ad8fe10ac65ec6adb34b5a9ad080416df687060fe41f",
+    "views\\main_view.py": "84a69e65c377987e1910f21c94091d92704a860712310d267e331126c1b63df0",
+    "views\\painel_produtos.py": "bdeb286a23f53c3b0ffc9624c633af8ec1476a09e2f2c513435ef09817985597",
+    "views\\view_admin.py": "f130cabb218d123bc25a2c4183e590f38134d31f5dee02e733db1095a8916e94",
+    "views\\view_cadastro.py": "1371b4de7193aa7697745c10b056f6c841f06e2277f0f0b02f65a96b322fde76",
+    "views\\view_dashboard.py": "d212468666d521e372c70e41a9efbc9c8099a87c035a02e08577cc2d206960db",
+    "views\\view_operacao.py": "7ae6fe479221ff1e4d9d7f55a83ba270c3e5709a0e6e26e480deb4aa89a0860f",
+    "views\\view_relatorios.py": "7e8bfa71cb577486fdd4d86044343ead9f7e27227f658d2ad2ed98e6e66ec998",
+    "views\\__init__.py": "1c63b61e15f576fb8d577a8b8bf7ffd753170383a626e17e3e91f1e8ed9c7138",
+    "utils\\erros.py": "e926cba6b278a2d72bc1b6bdd43571f207943d0b723c9f3eeec4815eea8368ac",
+    "utils\\gtin.py": "47bc731a6656b913c9c7ccfd77d6a5c8a096a3b114430fdb73ce2198d47bdad7",
+    "utils\\texto.py": "d1a1a57cf19f815a70aac62806d3f48248f465153904a812b16de3add8c42de4",
+    "utils\\__init__.py": "2e7ceff15a8006c2da4517b328e2ce7f16588365cb447a4458bc08a331e62de9",
+    "assets\\gistocker.png": "85750eb273a05fcc32dfc9d49245d1d7c85d974e41cd91e692c2d46db837b604",
+    "assets\\icone_gistocker.ico": "ac309f103881abc0c21555227d0b2a6dc697b7c4610de922f22a80f888847ed6",
+    "assets\\icone_gistocker.png": "806dc9dfc162b184019f29b6ab6f6223b40c1daf01317dcdd5ca523d998c12e0",
+    "assets\\tema.json": "3d3efe44291a76873ae169803ed5511aad07c5b66faba8f4739e1153c473854a"
+  },
+  "build_inspecao_estatica": {
+    "caminho": "C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\dist\\GiStocker_20261001_003947_twmiqkkq\\GestorEstoque\\GestorEstoque.exe",
+    "exe_bytes": 12541183,
+    "modulos_presentes": {
+      "config": true,
+      "controllers.controllers": true,
+      "models.models": true,
+      "utils.gtin": true,
+      "views.main_view": true,
+      "views.view_operacao": true,
+      "views.view_cadastro": true,
+      "views.view_admin": true,
+      "views.painel_produtos": true,
+      "views.view_dashboard": true,
+      "views.view_relatorios": true
+    },
+    "recursos_iguais_fonte": {
+      "gistocker.png": true,
+      "icone_gistocker.ico": true,
+      "icone_gistocker.png": true,
+      "tema.json": true
+    }
+  }
+}

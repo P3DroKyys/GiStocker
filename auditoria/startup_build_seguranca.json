@@ -1,0 +1,11 @@
+{
+  "resultado": "OK",
+  "executavel": "C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\dist\\GiStocker_20261001_131641_09507d5c1eac\\GestorEstoque",
+  "teste": "Inicializacao compilada em copia isolada, sem autenticar",
+  "processo_ativo": true,
+  "titulo": "GiStocker · Gestão de estoque",
+  "motor_sqlcipher_carregado": true,
+  "banco_criado_antes_senha": false,
+  "log_erro": false,
+  "dados_reais_acessados": false
+}

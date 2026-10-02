@@ -1,0 +1,46 @@
+..............E....F
+======================================================================
+ERROR: test_banco_nao_abre_sem_envelope (auditoria.verificar_multicanal.Servico.test_banco_nao_abre_sem_envelope)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Python314\Lib\shutil.py", line 701, in _rmtree_unsafe
+    os.unlink(fullname)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] O arquivo j� est� sendo usado por outro processo: 'C:\\Users\\joaop\\AppData\\Local\\Temp\\tmpp2gqg1__\\dados\\cofre_v2\\estoque.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_multicanal.py", line 151, in tearDown
+    self.n.fechar(); self.tmp.cleanup()
+                     ~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\tempfile.py", line 975, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\tempfile.py", line 955, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\shutil.py", line 852, in rmtree
+    _rmtree_impl(path, dir_fd, onexc)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\shutil.py", line 705, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\tempfile.py", line 930, in onexc
+    _os.unlink(path)
+    ~~~~~~~~~~^^^^^^
+PermissionError: [WinError 32] O arquivo j� est� sendo usado por outro processo: 'C:\\Users\\joaop\\AppData\\Local\\Temp\\tmpp2gqg1__\\dados\\cofre_v2\\estoque.db'
+
+======================================================================
+FAIL: test_simulacao_isolada_e_dpapi (auditoria.verificar_multicanal.Servico.test_simulacao_isolada_e_dpapi)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_multicanal.py", line 203, in test_simulacao_isolada_e_dpapi
+    self.assertTrue(self.call('integracoes.ativar_simulacao')['ok'])
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 20 tests in 9.638s
+
+FAILED (failures=1, errors=1)

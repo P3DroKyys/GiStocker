@@ -1,0 +1,15 @@
+[
+  "config.py",
+  "gerar_build.py",
+  "main.py",
+  "requirements.lock",
+  "models\\models.py",
+  "models\\seguranca.py",
+  "views\\main_view.py",
+  "views\\view_admin.py",
+  "views\\view_cadastro.py",
+  "views\\view_configuracoes.py",
+  "views\\view_operacao.py",
+  "views\\view_relatorios.py",
+  "auditoria\\verificar_banco.py"
+]

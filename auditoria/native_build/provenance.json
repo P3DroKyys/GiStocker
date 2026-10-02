@@ -1,0 +1,10 @@
+{
+  "sqlcipher-4.18.0.tar.gz": {
+    "url": "https://codeload.github.com/sqlcipher/sqlcipher/tar.gz/refs/tags/v4.18.0",
+    "sha256": "1df02d1b346fa27feaf2da2cb2c0d8209e788248e461ec288718aa5d3e9643e5"
+  },
+  "sqlcipher3-0.6.2.tar.gz": {
+    "url": "https://files.pythonhosted.org/packages/ae/c1/414003d77549c444bafd636149ab3ace6f4e2cb4666c9955d54ad62096cb/sqlcipher3-0.6.2.tar.gz",
+    "sha256": "a2b675289ba8889f389625a21f3a01f1ff159a551b5b88fba8fd92da0e02380a"
+  }
+}

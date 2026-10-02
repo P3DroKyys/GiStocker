@@ -1,0 +1,7 @@
+Build 1.0.3 — abertura em cópia isolada
+Executável: C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\smoke_build_103_18e0c4a1\GestorEstoque\GestorEstoque.exe
+Título observado: GiStocker · Gestão de estoque
+Processo ativo: True
+avisos.log: 0 bytes; erros.log: ausente
+Inspeção da captura: não concluída; a autorização do Computer Use para o novo executável expirou.
+Fluxos funcionais cobertos separadamente pelo teste de integração com widgets reais.

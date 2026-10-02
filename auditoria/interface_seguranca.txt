@@ -1,0 +1,9 @@
+test_bloqueio_durante_mensagem_de_cadastro_nao_repete_nem_falha (__main__.InterfaceReal.test_bloqueio_durante_mensagem_de_cadastro_nao_repete_nem_falha) ... ok
+test_migracao_interrompida_retoma_na_tela_com_nova_senha (__main__.InterfaceReal.test_migracao_interrompida_retoma_na_tela_com_nova_senha) ... ok
+test_primeira_criacao_usa_nova_senha_sem_padrao (__main__.InterfaceReal.test_primeira_criacao_usa_nova_senha_sem_padrao) ... ok
+test_sessao_completa_isolada (__main__.InterfaceReal.test_sessao_completa_isolada) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 6.574s
+
+OK

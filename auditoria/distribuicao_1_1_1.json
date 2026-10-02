@@ -1,0 +1,12 @@
+{
+  "pasta": "C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\dist\\GiStocker_20261001_201716_9b4694e137e4\\GestorEstoque",
+  "arquivos_verificados": 2051,
+  "bytes": 123636008,
+  "modulos": 1112,
+  "motor_sha256": "87a26ce825196ffcc1800276aa4abb721a2b138b6004e724f3c11a1b567b3b27",
+  "exe_sha256": "f3fa218fd0b84227e21327c5d8114bc1063564a3735ec82e2601558ea9bdb59f",
+  "versao": "1.1.1",
+  "dados_reais_incluidos": false,
+  "testes_e_ferramentas_auditoria_incluidos": false,
+  "resultado": "OK"
+}

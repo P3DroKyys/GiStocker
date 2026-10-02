@@ -1,0 +1,3 @@
+# Versões reproduzíveis; execute a partir da pasta do projeto.
+--require-hashes
+-r requirements.lock

@@ -1,0 +1,8 @@
+{
+  "resultado": "OK",
+  "versao": "1.2.0",
+  "modulos_aplicacao": "Bytecode extraído do PYZ da build",
+  "rapidfuzz": "C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\dist\\GiStocker_20261001_230801_33c09fc2dcb3\\GestorEstoque\\_internal\\rapidfuzz\\__init__.py",
+  "implementacao": "C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\dist\\GiStocker_20261001_230801_33c09fc2dcb3\\GestorEstoque\\_internal\\rapidfuzz\\distance\\metrics_cpp_avx2.cp314-win_amd64.pyd",
+  "dados_reais_acessados": false
+}

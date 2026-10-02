@@ -1,0 +1,53 @@
+...........................................................................................................................................................................................................................EEEE...........
+======================================================================
+ERROR: test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos (verificar_upgrade.FluxosDasTelas.test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos) (metodo='_registrar_atividade', segundos=600)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_upgrade.py", line 40, in test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos
+    getattr(JanelaPrincipal, metodo)(janela)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\views\main_view.py", line 233, in _registrar_atividade
+    if self._desbloqueado and hasattr(self.preferencias, 'atividade') and agora-getattr(self,'_ultimo_ipc',0)>30:
+                                                                          ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'int' and 'Mock'
+
+======================================================================
+ERROR: test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos (verificar_upgrade.FluxosDasTelas.test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos) (metodo='_registrar_atividade', segundos=5399)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_upgrade.py", line 40, in test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos
+    getattr(JanelaPrincipal, metodo)(janela)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\views\main_view.py", line 233, in _registrar_atividade
+    if self._desbloqueado and hasattr(self.preferencias, 'atividade') and agora-getattr(self,'_ultimo_ipc',0)>30:
+                                                                          ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'int' and 'Mock'
+
+======================================================================
+ERROR: test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos (verificar_upgrade.FluxosDasTelas.test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos) (metodo='_registrar_atividade', segundos=5400)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_upgrade.py", line 40, in test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos
+    getattr(JanelaPrincipal, metodo)(janela)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\views\main_view.py", line 233, in _registrar_atividade
+    if self._desbloqueado and hasattr(self.preferencias, 'atividade') and agora-getattr(self,'_ultimo_ipc',0)>30:
+                                                                          ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'int' and 'Mock'
+
+======================================================================
+ERROR: test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos (verificar_upgrade.FluxosDasTelas.test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos) (metodo='_registrar_atividade', segundos=5401)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_upgrade.py", line 40, in test_bloqueio_exatamente_apos_90_minutos_em_ambos_caminhos
+    getattr(JanelaPrincipal, metodo)(janela)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\views\main_view.py", line 233, in _registrar_atividade
+    if self._desbloqueado and hasattr(self.preferencias, 'atividade') and agora-getattr(self,'_ultimo_ipc',0)>30:
+                                                                          ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: unsupported operand type(s) for -: 'int' and 'Mock'
+
+----------------------------------------------------------------------
+Ran 231 tests in 59.026s
+
+FAILED (errors=4)

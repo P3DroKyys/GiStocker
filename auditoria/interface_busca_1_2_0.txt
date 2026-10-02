@@ -1,0 +1,10 @@
+test_busca_pendente_cancelada_ao_sair_e_bloquear (__main__.InterfaceBusca.test_busca_pendente_cancelada_ao_sair_e_bloquear) ... ok
+test_catalogo_abre_ajustes_com_filtro_id (__main__.InterfaceBusca.test_catalogo_abre_ajustes_com_filtro_id) ... ok
+test_digitacao_colagem_limpeza_e_selecao_obsoleta (__main__.InterfaceBusca.test_digitacao_colagem_limpeza_e_selecao_obsoleta) ... ok
+test_paginacao_permite_acessar_todos_resultados (__main__.InterfaceBusca.test_paginacao_permite_acessar_todos_resultados) ... ok
+test_sugestao_exige_escolha_e_scanner_resolve_exato (__main__.InterfaceBusca.test_sugestao_exige_escolha_e_scanner_resolve_exato) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 6.842s
+
+OK

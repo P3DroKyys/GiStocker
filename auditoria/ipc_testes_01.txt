@@ -1,0 +1,33 @@
+EE
+======================================================================
+ERROR: test_dacl_rejeita_token_restrito (auditoria.verificar_ipc.PipeWindows.test_dacl_rejeita_token_restrito)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_ipc.py", line 32, in setUp
+    self.tearDown(); raise erro
+                     ^^^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_ipc.py", line 28, in setUp
+    self.cliente.chamar('status'); break
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\servico\cliente.py", line 46, in chamar
+    raise ErroSeguranca('O servi�o local n�o respondeu. Nenhuma grava��o direta foi realizada. Ao repetir esta mesma opera��o, o identificador ser� preservado.') from None
+models.seguranca.ErroSeguranca: O servi�o local n�o respondeu. Nenhuma grava��o direta foi realizada. Ao repetir esta mesma opera��o, o identificador ser� preservado.
+
+======================================================================
+ERROR: test_login_controle_e_concorrencia (auditoria.verificar_ipc.PipeWindows.test_login_controle_e_concorrencia)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_ipc.py", line 32, in setUp
+    self.tearDown(); raise erro
+                     ^^^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_ipc.py", line 28, in setUp
+    self.cliente.chamar('status'); break
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\servico\cliente.py", line 46, in chamar
+    raise ErroSeguranca('O servi�o local n�o respondeu. Nenhuma grava��o direta foi realizada. Ao repetir esta mesma opera��o, o identificador ser� preservado.') from None
+models.seguranca.ErroSeguranca: O servi�o local n�o respondeu. Nenhuma grava��o direta foi realizada. Ao repetir esta mesma opera��o, o identificador ser� preservado.
+
+----------------------------------------------------------------------
+Ran 2 tests in 12.249s
+
+FAILED (errors=2)

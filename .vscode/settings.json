@@ -1,0 +1,10 @@
+{
+    // Faz o VSCode usar o Python da pasta .venv deste projeto,
+    // para que ele reconheça customtkinter, pandas e matplotlib.
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+    "python.terminal.activateEnvironment": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "build": true
+    }
+}

@@ -1,0 +1,36 @@
+{
+  "produtos": 10001,
+  "construcao_ms": 192.4,
+  "consultas": [
+    {
+      "consulta": "hid",
+      "ms": 47.58,
+      "resultados": 10000,
+      "aproximada": false
+    },
+    {
+      "consulta": "hidratante 200",
+      "ms": 51.54,
+      "resultados": 10000,
+      "aproximada": false
+    },
+    {
+      "consulta": "malbce",
+      "ms": 4.87,
+      "resultados": 1,
+      "aproximada": true
+    },
+    {
+      "consulta": "hidratnte",
+      "ms": 61.87,
+      "resultados": 10000,
+      "aproximada": true
+    },
+    {
+      "consulta": "zzzzzzzz",
+      "ms": 14.41,
+      "resultados": 0,
+      "aproximada": false
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "executado_em": "2026-10-01T00:23:03.531616",
+  "python": "3.14.3",
+  "plataforma": "Windows-11-10.0.26200-SP0",
+  "bibliotecas": {
+    "customtkinter": "6.0.0",
+    "pandas": "3.0.6",
+    "matplotlib": "3.11.2",
+    "Pillow": "12.3.0",
+    "pyinstaller": "6.22.3"
+  },
+  "total": 86,
+  "aprovados": 72,
+  "defeitos_reproduzidos": [
+    {
+      "teste": "verificar.Auditoria.test_defeito_exportacoes_no_mesmo_minuto",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar.py\", line 165, in test_defeito_exportacoes_no_mesmo_minuto\n    self.assertNotEqual(primeira, segunda)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\nAssertionError: (WindowsPath('C:/Users/joaop/AppData/Local/Temp/tmp6856v7x9/backup_estoque_20260930_1200.csv'), WindowsPath('C:/Users/joaop/AppData/Local/Temp/tmp6856v7x9/backup_logs_20260930_1200.csv')) == (WindowsPath('C:/Users/joaop/AppData/Local/Temp/tmp6856v7x9/backup_estoque_20260930_1200.csv'), WindowsPath('C:/Users/joaop/AppData/Local/Temp/tmp6856v7x9/backup_logs_20260930_1200.csv'))\n"
+    },
+    {
+      "teste": "verificar.Auditoria.test_defeito_tonico_capilar",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar.py\", line 155, in test_defeito_tonico_capilar\n    self.assertEqual(sugerir_categoria('Tônico capilar'), 'Cabelos')\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'Skincare' != 'Cabelos'\n- Skincare\n+ Cabelos\n\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_csv_estoque_e_logs_sem_snapshot_unico",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 249, in test_defeito_csv_estoque_e_logs_sem_snapshot_unico\n    self.assertEqual(saldo, ultimo)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^\nAssertionError: 10 != 9\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_csv_falha_segundo_arquivo_deixa_par_incompleto",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 272, in test_defeito_csv_falha_segundo_arquivo_deixa_par_incompleto\n    self.assertEqual(list(Path(tmp).glob('*.csv')), [])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Lists differ: [WindowsPath('C:/Users/joaop/AppData/Local[48 chars]sv')] != []\n\nFirst list contains 1 additional elements.\nFirst extra element 0:\nWindowsPath('C:/Users/joaop/AppData/Local/Temp/tmpu4bhm810/backup_estoque_20261001_0023.csv')\n\n- [WindowsPath('C:/Users/joaop/AppData/Local/Temp/tmpu4bhm810/backup_estoque_20261001_0023.csv')]\n+ []\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_csv_texto_pode_ser_interpretado_como_formula",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 258, in test_defeito_csv_texto_pode_ser_interpretado_como_formula\n    self.assertFalse(nome.startswith(('=', '+', '-', '@')))\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: True is not false\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_entrada_sem_custo_altera_custo_preciso",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 212, in test_defeito_entrada_sem_custo_altera_custo_preciso\n    self.assertEqual(self.c.registrar_entrada(p.id, 1, '').custo_novo, p.custo_medio)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 10.1235 != 10.123456\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_falha_disco_na_operacao_nao_exibe_mensagem",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 162, in test_defeito_falha_disco_na_operacao_nao_exibe_mensagem\n    ViewOperacao._confirmar(view)\n    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\views\\view_operacao.py\", line 240, in _confirmar\n    resultado = self.controlador.registrar_entrada(\n        self.produto_atual.id, self.entrada_quantidade.get(), self.entrada_custo.get())\n  File \"C:\\Python314\\Lib\\unittest\\mock.py\", line 1175, in __call__\n    return self._mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Python314\\Lib\\unittest\\mock.py\", line 1179, in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Python314\\Lib\\unittest\\mock.py\", line 1234, in _execute_mock_call\n    raise effect\nsqlite3.OperationalError: database or disk is full\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_quantidade_fora_int64_deveria_gerar_erro_negocio",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 190, in test_defeito_quantidade_fora_int64_deveria_gerar_erro_negocio\n    self.produto(quantidade_inicial=str(2**63))\n    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 41, in produto\n    return self.c.cadastrar_produto(**dados)\n           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\controllers\\controllers.py\", line 47, in executar\n    return metodo(self, *args, **kwargs)\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\controllers\\controllers.py\", line 246, in cadastrar_produto\n    produto.id = self.produtos.inserir(produto)\n                 ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\models\\models.py\", line 308, in inserir\n    cursor = self.bd.executar(\n        \"\"\"INSERT INTO Produtos\n    ...<3 lines>...\n         produto.preco_venda_base, produto.custo_medio),\n    )\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\models\\models.py\", line 244, in executar\n    return self.conexao.execute(sql, parametros)\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\nOverflowError: Python int too large to convert to SQLite INTEGER\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_relatorios_e_busca_admin_limitados_sem_aviso",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 232, in test_defeito_relatorios_e_busca_admin_limitados_sem_aviso\n    self.assertEqual(len(self.c.buscar_produtos('')), 501)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 500 != 501\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_soma_saldos_permitidos_quebra_kpis",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 202, in test_defeito_soma_saldos_permitidos_quebra_kpis\n    self.assertEqual(self.r.obter_kpis()['total_itens'], 2**63)\n                     ~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\controllers\\controllers.py\", line 427, in obter_kpis\n    return self.relatorios.totais_estoque()\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\models\\models.py\", line 482, in totais_estoque\n    linha = self.bd.buscar_um(\n        \"\"\"SELECT COUNT(*)                                        AS total_produtos,\n    ...<3 lines>...\n             FROM Produtos\"\"\"\n    )\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\models\\models.py\", line 247, in buscar_um\n    return self.conexao.execute(sql, parametros).fetchone()\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\nsqlite3.OperationalError: integer overflow\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_sugestao_categoria_permanece_apos_apagar_nome",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 224, in test_defeito_sugestao_categoria_permanece_apos_apagar_nome\n    self.assertEqual(categoria['valor'], '')\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'Cabelos' != ''\n- Cabelos\n\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaAmpliada.test_defeito_valor_finito_produz_total_infinito",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 207, in test_defeito_valor_finito_produz_total_infinito\n    self.assertTrue(math.isfinite(self.r.obter_kpis()['valor_investido']))\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaPersistencia.test_defeito_rebuild_apaga_dados_dentro_dist",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 384, in test_defeito_rebuild_apaga_dados_dentro_dist\n    self.assertTrue(banco.exists())\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\nAssertionError: False is not true\n"
+    },
+    {
+      "teste": "verificar_ampliado.AuditoriaPersistencia.test_defeito_remocao_codigo_com_tela_antiga_remove_novo_dono",
+      "evidencia": "Traceback (most recent call last):\n  File \"C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\auditoria\\verificar_ampliado.py\", line 367, in test_defeito_remocao_codigo_com_tela_antiga_remove_novo_dono\n    self.assertIsNotNone(atual)\n    ~~~~~~~~~~~~~~~~~~~~^^^^^^^\nAssertionError: unexpectedly None\n"
+    }
+  ],
+  "erros_inesperados": [],
+  "falhas_inesperadas": [],
+  "sucessos_inesperados": [],
+  "ignorados": [],
+  "segundos_suite": 2.0879695000039646,
+  "carga_sintetica": {
+    "produtos": 5000,
+    "movimentacoes": 10000,
+    "preparacao_s": 0.34609230000933167,
+    "listar_catalogo": {
+      "segundos": 0.02106840000487864,
+      "registros_ou_chaves": 5000
+    },
+    "buscar_texto": {
+      "segundos": 0.020962900001904927,
+      "registros_ou_chaves": 500
+    },
+    "listar_historico": {
+      "segundos": 0.03278080000018235,
+      "registros_ou_chaves": 10000
+    },
+    "kpis": {
+      "segundos": 0.0024662000068929046,
+      "registros_ou_chaves": 4
+    },
+    "curva_a": {
+      "segundos": 0.0034026999928755686,
+      "registros_ou_chaves": 5
+    }
+  },
+  "fontes_app_inalterados_durante_execucao": true,
+  "hashes_fontes": {
+    "config.py": "eb3f945f573fc41a14199eea2914538e39116c1178877408adba71d1c1b86a5b",
+    "main.py": "07ba76d5888b3cae4028a4776ca1b51cc1224b76bbb38712167fd7cee714df0c",
+    "1_preparar_ambiente.bat": "a9e69a670e30b727b4fe31494bf08423e657235c8be3e8fd924742b61eb610cf",
+    "2_executar.bat": "7fa401ea05d7933ada82e4e427ac28171044a2b4f1cb5d05ff9979c0cd6fd8c9",
+    "3_gerar_exe.bat": "42234724900ddb621ac62772722b636043b4389ff4e5c1f476547142829f67fd",
+    "requirements.txt": "cff5a0dd77cd625659dd3b4a11dd235a9644eecb86592e54dbe16ac157f2c916",
+    "controllers\\controllers.py": "d8665b2d2f0ecd596f25cefcad6d57c54fe372e2db15370a2ec255154437d3d0",
+    "controllers\\__init__.py": "f8166641c652b86c951a0f74f1f766e4bfd978d769f2e39ecfee1bc7c4b03a0f",
+    "models\\models.py": "17b4a58844b99cca23b9206164a928401fe65bbb1ecbc03757935d6eb4e8fe0e",
+    "models\\__init__.py": "dc06f855147fa4e8c06163c547da136b9cb0215673b6d34382f55583a143714e",
+    "views\\componentes.py": "2cd03797b57ad6713cf9ad8fe10ac65ec6adb34b5a9ad080416df687060fe41f",
+    "views\\main_view.py": "c67370d79c8ac921fe4245dff802424393a550e068f99a98a406d37d9dbdc86e",
+    "views\\painel_produtos.py": "85cf6e857d983283f5095471d1f0e5d7a5887d7be5edae554bb80872d0def400",
+    "views\\view_admin.py": "d67fc10784c600ff2572b9e72d27a35a97c3a672d56c59b49eb693b1d649ea65",
+    "views\\view_cadastro.py": "9b31b05f31f6dceba9d96f0984375b83d03febf8f9be007b05f0d9a53fcd927c",
+    "views\\view_dashboard.py": "d212468666d521e372c70e41a9efbc9c8099a87c035a02e08577cc2d206960db",
+    "views\\view_operacao.py": "02ce81bca34f4e085cff7dd8e03720e8997d0773abeb659ecbca8d10c15186e1",
+    "views\\view_relatorios.py": "7e8bfa71cb577486fdd4d86044343ead9f7e27227f658d2ad2ed98e6e66ec998",
+    "views\\__init__.py": "1c63b61e15f576fb8d577a8b8bf7ffd753170383a626e17e3e91f1e8ed9c7138",
+    "utils\\gtin.py": "47bc731a6656b913c9c7ccfd77d6a5c8a096a3b114430fdb73ce2198d47bdad7",
+    "utils\\texto.py": "db28afcb96c9a0bfd56789952faffb506a3a6401a13b13bbd6729ac8a4315b58",
+    "utils\\__init__.py": "2e7ceff15a8006c2da4517b328e2ce7f16588365cb447a4458bc08a331e62de9",
+    "assets\\gistocker.png": "85750eb273a05fcc32dfc9d49245d1d7c85d974e41cd91e692c2d46db837b604",
+    "assets\\icone_gistocker.ico": "ac309f103881abc0c21555227d0b2a6dc697b7c4610de922f22a80f888847ed6",
+    "assets\\icone_gistocker.png": "806dc9dfc162b184019f29b6ab6f6223b40c1daf01317dcdd5ca523d998c12e0",
+    "assets\\tema.json": "3d3efe44291a76873ae169803ed5511aad07c5b66faba8f4739e1153c473854a"
+  }
+}

@@ -1,0 +1,159 @@
+344 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.7
+344 INFO: Python: 3.14.3
+356 INFO: Platform: Windows-11-10.0.26200-SP0
+356 INFO: Python environment: C:\Software Gestor\CODIGO\estoque_cosmeticos\.venv
+357 INFO: wrote C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque.spec
+4360 INFO: Module search paths (PYTHONPATH):
+['C:\\Software Gestor\\CODIGO\\estoque_cosmeticos',
+ 'C:\\Python314\\python314.zip',
+ 'C:\\Python314\\DLLs',
+ 'C:\\Python314\\Lib',
+ 'C:\\Python314',
+ 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv',
+ 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages',
+ 'C:\\Software '
+ 'Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\win32',
+ 'C:\\Software '
+ 'Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\win32\\lib',
+ 'C:\\Software '
+ 'Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\Pythonwin',
+ 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos']
+4878 INFO: Appending 'binaries' from .spec
+4878 INFO: Appending 'datas' from .spec
+4897 INFO: checking Analysis
+4897 INFO: Building Analysis because Analysis-00.toc is non existent
+4898 INFO: Looking for Python shared library...
+4898 INFO: Using Python shared library: C:\Python314\python314.dll
+4898 INFO: Running Analysis Analysis-00.toc
+4898 INFO: Target bytecode optimization level: 0
+4898 INFO: Initializing module dependency graph...
+4899 INFO: Initializing module graph hook caches...
+4981 INFO: Analyzing modules for base_library.zip ...
+6795 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+7280 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9259 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9279 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9453 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+12459 INFO: Caching module dependency graph...
+12491 INFO: Analyzing C:\Software Gestor\CODIGO\estoque_cosmeticos\main.py
+12525 INFO: Processing standard module hook 'hook-customtkinter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+12608 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+12610 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+13287 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13415 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13473 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13493 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+13507 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+13508 INFO: SetuptoolsInfo: initializing cached setuptools info...
+14563 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+15086 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+15249 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+15692 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+17877 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+20273 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+20449 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+22517 INFO: Processing standard module hook 'hook-charset_normalizer.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+23161 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+23282 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+23935 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+24864 INFO: Processing standard module hook 'hook-sqlite3.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+25629 INFO: Processing standard module hook 'hook-pandas.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+27734 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+30615 INFO: Processing standard module hook 'hook-pandas.io.formats.style.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+34714 INFO: Processing standard module hook 'hook-pandas.plotting.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+34817 INFO: Processing standard module hook 'hook-matplotlib.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+35955 INFO: Processing standard module hook 'hook-matplotlib.backend_bases.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+37293 INFO: Processing standard module hook 'hook-jinja2.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+38833 INFO: Processing standard module hook 'hook-matplotlib.backends.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+38988 INFO: Processing standard module hook 'hook-matplotlib.pyplot.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+39189 INFO: Processing standard module hook 'hook-matplotlib.figure.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+40288 INFO: Processing standard module hook 'hook-dateutil.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+40439 INFO: Processing pre-safe-import-module hook 'hook-six.moves.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+43604 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+43618 INFO: Processing standard module hook 'hook-certifi.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+47525 INFO: Processing standard module hook 'hook-pandas.io.clipboard.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+49007 INFO: Processing standard module hook 'hook-cryptography.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+50790 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+50997 INFO: Processing standard module hook 'hook-pywintypes.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+51640 INFO: Analyzing hidden import 'rapidfuzz.__pyinstaller'
+51644 INFO: Analyzing hidden import 'rapidfuzz.__pyinstaller.test_rapidfuzz_packaging'
+52212 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+52213 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.importlib_metadata'!
+52231 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+52280 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+52370 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+52370 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+52398 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+52399 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+52638 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+53173 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+53175 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+53196 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+53197 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+54349 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+55379 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+55517 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+55630 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+55631 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!
+55748 INFO: Processing standard module hook 'hook-win32ctypes.core.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+56794 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+57285 INFO: Processing module hooks (post-graph stage)...
+57485 WARNING: Hidden import "pycparser.lextab" not found!
+57485 WARNING: Hidden import "pycparser.yacctab" not found!
+57509 INFO: Processing standard module hook 'hook-matplotlib.backends.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+57510 INFO: Matplotlib backend selection method: automatic discovery of used backends
+57912 INFO: Trying determine the default backend as first importable candidate from the list: ['QtAgg', 'Qt5Agg', 'Gtk4Agg', 'Gtk3Agg', 'TkAgg', 'WxAgg']
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\joaop\\AppData\\Local\\matplotlib\\fontlist-v3.11.0.json.matplotlib-lock'
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\joaop\\AppData\\Local\\matplotlib\\fontlist-v3.11.0.json.matplotlib-lock'
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\joaop\\AppData\\Local\\matplotlib\\fontlist-v3.11.0.json.matplotlib-lock'
+61589 INFO: Selected matplotlib backends: ['TkAgg']
+61589 INFO: Extra dists for selected matplotlib backends: []
+62624 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+62990 INFO: Processing standard module hook 'hook-_tkinter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+62992 INFO: Processing standard module hook 'hook-tzdata.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+63887 INFO: Performing binary vs. data reclassification (1942 entries)
+71347 INFO: Looking for ctypes DLLs
+71369 WARNING: Ignoring AppKit.framework/AppKit imported from C:\Software Gestor\CODIGO\estoque_cosmeticos\.venv\Lib\site-packages\darkdetect\_mac_detect.py - only basenames are supported with ctypes imports!
+71476 INFO: Analyzing run-time hooks ...
+71485 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71498 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71509 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71522 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71532 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+71542 INFO: Including run-time hook 'pyi_rth_pywintypes.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+71550 INFO: Including run-time hook 'pyi_rth_mplconfig.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71559 INFO: Processing pre-find-module-path hook 'hook-_pyi_rth_utils.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+71570 INFO: Processing standard module hook 'hook-_pyi_rth_utils.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+71601 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+71675 INFO: Creating base_library.zip...
+71698 INFO: Looking for dynamic libraries
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\joaop\\AppData\\Local\\matplotlib\\fontlist-v3.11.0.json.matplotlib-lock'
+74316 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\numpy.libs', 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\rapidfuzz.libs', 'C:\\Software Gestor\\CODIGO\\estoque_cosmeticos\\.venv\\Lib\\site-packages\\pandas.libs']
+74316 INFO: Extra DLL search directories (PATH): []
+76546 INFO: Warnings written to C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque\warn-GestorEstoque.txt
+76692 INFO: Graph cross-reference written to C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque\xref-GestorEstoque.html
+76848 INFO: checking PYZ
+76848 INFO: Building PYZ because PYZ-00.toc is non existent
+76848 INFO: Building PYZ (ZlibArchive) C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque\PYZ-00.pyz
+77725 INFO: Building PYZ (ZlibArchive) C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque\PYZ-00.pyz completed successfully.
+77756 INFO: checking PKG
+77756 INFO: Building PKG because PKG-00.toc is non existent
+77756 INFO: Building PKG (CArchive) GestorEstoque.pkg
+77789 INFO: Building PKG (CArchive) GestorEstoque.pkg completed successfully.
+77790 INFO: Bootloader C:\Software Gestor\CODIGO\estoque_cosmeticos\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+77790 INFO: checking EXE
+77790 INFO: Building EXE because EXE-00.toc is non existent
+77790 INFO: Building EXE from EXE-00.toc
+77791 INFO: Copying bootloader EXE to C:\Software Gestor\CODIGO\estoque_cosmeticos\build\GiStocker_20261002_092352_78d141d3787e\GestorEstoque\GestorEstoque.exe
+78822 INFO: Copying icon to EXE
+78862 INFO: Copying 0 resources to EXE
+78862 INFO: Embedding manifest in EXE
+78900 INFO: Appending PKG archive to EXE
+78966 INFO: Fixing EXE headers
+79221 INFO: Building EXE from EXE-00.toc completed successfully.
+79242 INFO: checking COLLECT
+79242 INFO: Building COLLECT because COLLECT-00.toc is non existent
+79243 INFO: Building COLLECT COLLECT-00.toc
+82510 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+82552 INFO: Build complete! The results are available in: C:\Software Gestor\CODIGO\estoque_cosmeticos\dist\GiStocker_20261002_092352_78d141d3787e
+ERRO ao gerar: A distribui��o cont�m arquivo de dados ou credencial proibido.

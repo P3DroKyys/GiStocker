@@ -1,0 +1,18 @@
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\joaop\\AppData\\Local\\matplotlib\\fontlist-v3.11.0.json.matplotlib-lock'
+..............................E..
+======================================================================
+ERROR: test_wal_backup_exportacao_sem_texto_puro (verificar_seguranca.ProtecaoBanco.test_wal_backup_exportacao_sem_texto_puro)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Software Gestor\CODIGO\estoque_cosmeticos\auditoria\verificar_seguranca.py", line 131, in test_wal_backup_exportacao_sem_texto_puro
+    self.assertNotIn(MARCADOR.encode(), arquivo.read_bytes(), arquivo.name)
+                                        ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\pathlib\__init__.py", line 778, in read_bytes
+    return f.read()
+           ~~~~~~^^
+PermissionError: [Errno 13] Permission denied
+
+----------------------------------------------------------------------
+Ran 33 tests in 16.741s
+
+FAILED (errors=1)

@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+dados/*.db
+dados/*.db-wal
+dados/*.db-shm
+dados/backups/
+auditoria/fonte_antes_banco_*/
+exportacoes/*.csv
+*.log
+
+# Estado local, testes e ferramentas da auditoria
+dados/
+exportacoes/
+auditoria/.mplconfig/
+auditoria/native_build/conan_cache/
+auditoria/native_build/sqlcipher-4.18.0/
+auditoria/native_build/sqlcipher3-0.6.2/
+auditoria/runtime_wheels/
