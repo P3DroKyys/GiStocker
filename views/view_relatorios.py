@@ -54,6 +54,7 @@ class ViewRelatorios(ctk.CTkFrame):
         self.relatorios = janela.controlador_relatorios
         self._busca_agendada = None
         self.produto_filtro: int | None = None
+        self._ultimo_log = None
         self._construir()
 
     # ------------------------------------------------------------------ #
@@ -94,6 +95,9 @@ class ViewRelatorios(ctk.CTkFrame):
         ctk.CTkButton(linha_logs, text="Mostrar todos", width=120, height=30,
                       fg_color="transparent", border_width=1, text_color=("gray10", "#DCE4EE"),
                       command=self._limpar_filtro).pack(side="right")
+        self.botao_mais_logs = ctk.CTkButton(linha_logs, text='Carregar mais', width=120, height=30,
+                                             command=lambda: self._carregar_logs(mais=True))
+        self.botao_mais_logs.pack(side='right', padx=8)
 
         quadro_logs, self.tabela_logs = criar_tabela(self, COLUNAS_LOGS, altura=12, rolagem_horizontal=True)
         quadro_logs.grid(row=4, column=0, sticky="nsew")
@@ -151,9 +155,13 @@ class ViewRelatorios(ctk.CTkFrame):
     # ------------------------------------------------------------------ #
     # Histórico
     # ------------------------------------------------------------------ #
-    def _carregar_logs(self) -> None:
-        logs = self.controlador.listar_logs(produto_id=self.produto_filtro)
-        limpar_tabela(self.tabela_logs)
+    def _carregar_logs(self, mais=False) -> None:
+        logs = self.controlador.listar_logs(limite=200, produto_id=self.produto_filtro,
+                                            antes_id=self._ultimo_log if mais else None)
+        if not mais:
+            limpar_tabela(self.tabela_logs)
+        self._ultimo_log = logs[-1]['id'] if logs else None
+        self.botao_mais_logs.configure(state='normal' if len(logs) == 200 else 'disabled')
         for log in logs:
             etiquetas = ("cancelado",) if log["cancelado"] else ()
             self.tabela_logs.insert("", "end", tags=etiquetas, values=(
@@ -178,8 +186,10 @@ class ViewRelatorios(ctk.CTkFrame):
             return
         abrir = confirmar("Cópia protegida criada",
                           f"Arquivo: {caminho.name}\n\nPasta: {caminho.parent}\n\n"
-                          "Esta cópia exige a senha atual e contém estoque e histórico.\n"
-                          "Para restaurar, feche o software e use-a como dados/estoque.db.\n\n"
+                          "Cópia criptografada (.gsbackup) com estoque e histórico. Ela abre com a "
+                          "senha vigente na data em que foi criada.\n"
+                          "Para recuperar, não substitua dados/estoque.db: restaure em uma pasta nova "
+                          "seguindo \"Recuperação portátil\" no GUIA_MULTICANAL.md.\n\n"
                           "Deseja abrir a pasta?")
         if abrir and sys.platform.startswith("win"):
             os.startfile(caminho.parent)

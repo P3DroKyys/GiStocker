@@ -10,8 +10,8 @@ Permite:
 from __future__ import annotations
 
 import sqlite3
-from models.seguranca import ERROS_BANCO, ERROS_OPERACIONAIS, ErroSeguranca
-from utils.erros import mensagem_falha
+from models.seguranca import ERROS_OPERACIONAIS
+from utils.erros import ERROS_EXIBIVEIS, mensagem_falha
 
 import customtkinter as ctk
 
@@ -187,7 +187,7 @@ class ViewAdmin(ctk.CTkFrame):
         self.botao_mais.grid_remove()
         try:
             resultado = self.controlador.pesquisar_produtos(self.var_busca.get())
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             self.status_busca.configure(text=mensagem_falha(falha))
             return
         self._resultados_busca = resultado.produtos
@@ -233,7 +233,7 @@ class ViewAdmin(ctk.CTkFrame):
     def _carregar_produto(self, produto_id: int) -> None:
         try:
             produto = self.controlador.obter_produto(produto_id)
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Produto", mensagem_falha(falha))
             return
         self.produto_atual = produto
@@ -294,7 +294,7 @@ class ViewAdmin(ctk.CTkFrame):
                 self.produto_atual.id, estoque, custo,
                 estoque_esperado=self.produto_atual.estoque_atual,
                 custo_esperado=self.produto_atual.custo_medio)
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Ajuste", mensagem_falha(falha))
             return
         informar("Ajuste aplicado",
@@ -315,7 +315,7 @@ class ViewAdmin(ctk.CTkFrame):
         try:
             codigo = self.controlador.validar_codigo_barras(self.entrada_codigo.get())
             self.controlador.vincular_codigo_barras(codigo, self.produto_atual.id)
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Códigos", mensagem_falha(falha))
             return
         self.lista_codigos.adicionar(codigo)
@@ -330,7 +330,7 @@ class ViewAdmin(ctk.CTkFrame):
             if self.produto_atual is None:
                 raise ErroNegocio("Selecione novamente o produto antes de remover o código.")
             self.controlador.desvincular_codigo_barras(codigo, produto_id_esperado=self.produto_atual.id)
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Códigos", mensagem_falha(falha))
             return False
         return True

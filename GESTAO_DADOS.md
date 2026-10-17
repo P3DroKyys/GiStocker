@@ -42,18 +42,22 @@ cabeçalhos, na ordem abaixo:
 | --- | --- |
 | `codigo` | GTIN textual válido de 8, 12, 13 ou 14 dígitos, incluindo DV GS1. |
 | `nome` | Obrigatório, até 500 caracteres. |
-| `marca` | Uma das marcas disponíveis no cadastro do programa. |
-| `categoria` | Uma das categorias disponíveis no cadastro do programa. |
-| `quantidade` | Inteiro não negativo. É a quantidade **a adicionar**, não o saldo final. |
+| `marca` | Uma das marcas disponíveis no cadastro do programa (maiúsculas e acentos são indiferentes). |
+| `categoria` | Uma das categorias disponíveis no cadastro do programa (maiúsculas e acentos são indiferentes). |
+| `quantidade` | Inteiro não negativo, com ponto de milhar opcional (`1.000`). É a quantidade **a adicionar**, não o saldo final. |
 | `preco_venda_base` | Opcional. Quando preenchido, substitui o preço de venda. |
-| `custo_unitario` | Opcional. Com entrada de estoque, compõe o custo médio ponderado. Com quantidade zero, substitui o custo atual. |
+| `custo_unitario` | Opcional. Com entrada de estoque, compõe o custo médio ponderado. Com quantidade zero, substitui o custo atual e gera um Ajuste no histórico; sem custo, nenhum registro de histórico é criado. |
 
 No Excel, use **Dados → De Texto/CSV** e defina `codigo` como **Texto** antes de
 carregar. Abrir diretamente como número pode apagar zeros ou converter para
 notação científica. Não use fórmulas para gerar códigos. Salve em **CSV UTF-8**;
 arquivos `.xlsx` não são lidos nesta implementação. Também são aceitos CSVs com
-separador vírgula e campos corretamente entre aspas. Valores monetários aceitam
-`12,50` ou `12.50`. As quantidades não aceitam casas decimais ou separador de milhar.
+separador vírgula e campos corretamente entre aspas. Valores monetários usam
+vírgula decimal e ponto de milhar: `1.500` vale 1500 e `1.234,56` vale 1234,56.
+Também são aceitos ponto decimal com 1, 2 ou 4 casas (`10.5`, `12.50`, `10.1234`)
+e o prefixo `R$`. Para três casas decimais, use vírgula (`1,234`). Notação
+científica, sublinhados, infinitos e o formato `1,234.56` são rejeitados.
+As quantidades não aceitam casas decimais; o ponto de milhar é aceito, como nas telas.
 
 O sistema encontra produtos pelo GTIN e atualiza o produto vinculado. Um GTIN novo
 cria outro produto; o importador não tenta mesclar produtos por semelhança de nome.
@@ -80,12 +84,14 @@ nomes/preços nem a importação inteira. Use backup antes de uma atualização 
 - Ao concluir importação/restauração, o acesso é bloqueado para descartar todas as
   telas e consultas antigas. Desbloqueie com a mesma senha para continuar.
 - O agente continua sendo o único escritor. Enquanto mantém uma transação entre
-  lotes, ele bloqueia outras consultas e alterações do sistema. Cinco minutos sem
-  contato encerram o job e revertem uma transação ainda não confirmada.
-- Um recibo transacional e o journal de IDs permitem retomar o mesmo arquivo sem
-  repetir o lote após perda de resposta. Se a comunicação cair, use o **mesmo
-  arquivo** e confira o histórico. Uma nova importação após sucesso confirmado é
-  uma nova entrada e soma estoque novamente.
+  lotes, ele bloqueia outras consultas e alterações do sistema. Um minuto sem
+  contato encerra o job e reverte uma transação ainda não confirmada; um novo
+  desbloqueio após o fechamento inesperado da interface também reverte o job órfão.
+- Uma repetição automática imediata conserva o identificador do lote, e o recibo
+  transacional impede duplicação. Cada nova ação do usuário, inclusive selecionar
+  novamente o mesmo arquivo após erro, recebe outro identificador e soma estoque.
+  Se a comunicação cair nas duas tentativas, confira o histórico antes de iniciar
+  outra importação: o lote anterior pode ter sido confirmado.
 - O banco permanece criptografado. JSONs exportados, CSVs preenchidos e relatórios
   de importação ficam sob a responsabilidade do usuário e não são criptografados.
   Nada é enviado à internet. Não publique esses arquivos no GitHub.

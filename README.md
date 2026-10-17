@@ -188,7 +188,10 @@ substituir o arquivo antigo, mantendo as tabelas e os registros atuais. Bancos d
 versão futura são recusados. Se o backup falhar, a abertura é interrompida e o erro
 é informado pelo tratamento de inicialização; não se prossegue silenciosamente.
 
-Não há descarte automático dos backups nem botão de restauração nesta etapa.
+Os snapshots `.gsbackup` automáticos de `dados/backups` (diários e anteriores a uma
+restauração) mantêm as `BACKUPS_MANTIDOS` cópias mais recentes (30, em `config.py`);
+cópias `.gsa` legadas e exportações manuais não são descartadas. Não há botão de
+restauração de `.gsbackup` nesta etapa.
 São snapshots na abertura, não proteção contínua das movimentações feitas depois.
 Guarde cópias também fora desse disco. A API `BancoDados.criar_backup(pasta)` permite
 gerar snapshots adicionais fora de uma transação.

@@ -24,6 +24,14 @@ class ErroSeguranca(RuntimeError):
     pass
 
 
+class ErroAutenticacao(ErroSeguranca):
+    """A credencial não autenticou o conteúdo protegido."""
+
+
+class ErroSessao(ErroSeguranca):
+    """A sessão expirou ou não pertence à identidade do solicitante."""
+
+
 @lru_cache(maxsize=1)
 def verificar_motor():
     """Evita regressão acidental para uma wheel antiga ou sem as proteções.
@@ -158,14 +166,14 @@ def validar_esquema_legado(conexao):
     indices = {"idx_codigos_produto", "idx_logs_produto", "idx_logs_data",
                "sqlite_autoindex_Codigos_Barras_1"}
     versao = conexao.execute("PRAGMA user_version").fetchone()[0]
-    from multicanal.esquema import TABELAS, conferir_objeto
-    if versao == 2:
+    from multicanal.esquema import TABELAS, INDICES, conferir_objeto
+    if versao in (2, 3):
         tabelas |= TABELAS
     objetos = conexao.execute("SELECT type, name, sql FROM sqlite_master").fetchall()
     if {r[1] for r in objetos if r[0] == "table"} != tabelas:
         raise ErroSeguranca("Este arquivo não contém um banco de estoque completo.")
     for tipo, nome, sql in objetos:
-        if versao == 2 and (nome in TABELAS or tipo == 'trigger' or nome.startswith('sqlite_autoindex_') and nome != 'sqlite_autoindex_Codigos_Barras_1'):
+        if versao in (2, 3) and (nome in TABELAS or versao == 3 and nome in INDICES or tipo == 'trigger' or nome.startswith('sqlite_autoindex_') and nome != 'sqlite_autoindex_Codigos_Barras_1'):
             if conferir_objeto(tipo, nome, sql):
                 continue
             raise ErroSeguranca("Estrutura multicanal inesperada. Abertura interrompida.")
@@ -173,7 +181,7 @@ def validar_esquema_legado(conexao):
                 or (tipo == "index" and nome in indices)):
             continue
         raise ErroSeguranca("O banco antigo possui uma estrutura inesperada. A migração foi interrompida.")
-    if versao not in (0, 1, 2):
+    if versao not in (0, 1, 2, 3):
         raise ErroSeguranca("Versão do banco antigo não suportada.")
 
 

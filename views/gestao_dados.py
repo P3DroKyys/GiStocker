@@ -136,10 +136,14 @@ class PainelGestao(ctk.CTkFrame):
             return ''
         self.janela._gestao_em_andamento = True
         try:
-            return seletor(parent=self, **opcoes)
+            caminho = seletor(parent=self, **opcoes)
         finally:
             self.janela._gestao_em_andamento = False
-            self.janela._ultimo_uso = time.monotonic()
+        if self.janela.__dict__.pop('_bloqueio_pendente', False):
+            self.janela.bloquear()   # a inatividade venceu com o seletor aberto; descarta a escolha
+            return ''
+        self.janela._ultimo_uso = time.monotonic()
+        return caminho
 
 
 class DialogoGestao(ctk.CTkToplevel):
@@ -235,8 +239,9 @@ class DialogoGestao(ctk.CTkToplevel):
                 lambda etapa, feitos, total: self.fila.put(('progresso', (etapa, feitos, total))))
             self.fila.put(('sucesso', resultado))
         except Exception as exc:
-            from utils.erros import registrar_falha
-            registrar_falha(exc)
+            if not isinstance(exc, ValueError):   # ValueError traz a recusa esperada do agente
+                from utils.erros import registrar_falha
+                registrar_falha(exc)
             self.fila.put(('erro', str(exc) if isinstance(exc, (OSError, ValueError)) else
                            'Falha ao concluir. Confira o histórico antes de repetir; para retomar, use o mesmo arquivo.'))
         finally:

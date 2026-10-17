@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from gestao.arquivos import BLOCO, SaidaAtomica, ler_arquivo, ler_json
 from servico.pendencias import Pendencias
-from servico.pipe import chamar
+from servico.pipe import chamar, ERROS_TRANSPORTE
 from servico.protocolo import VERSAO, decodificar
 
 
@@ -19,11 +19,15 @@ class Transferencia:
     def pedir(self, comando, *args):
         pedido = dict(v=VERSAO, id=str(uuid4()), sessao=self.sessao,
                       comando='dados.' + comando, args=list(args), kwargs={})
-        try:
-            resposta = chamar(self.nome, pedido, self.producao)
-        except Exception:
-            raise OSError('O agente não respondeu. Confira o histórico antes de repetir. '
-                          'Para retomar com segurança, selecione o mesmo arquivo; o identificador do lote foi preservado.') from None
+        for tentativa in range(2):
+            try:
+                resposta = chamar(self.nome, pedido, self.producao)
+                break
+            except ERROS_TRANSPORTE:
+                if tentativa == 0:
+                    continue
+                raise OSError('O agente não respondeu. Confira o histórico antes de iniciar outra importação: '
+                              'o lote pode ter sido concluído. Uma nova ação terá outro identificador.') from None
         if resposta.get('v') != VERSAO or resposta.get('id') != pedido['id']:
             raise OSError('Resposta incompatível do agente.')
         if not resposta.get('ok'):
@@ -71,7 +75,7 @@ class Transferencia:
                 try:
                     self.pedir('liberar', operacao)
                 except (OSError, ValueError):
-                    pass  # O agente aborta transações abandonadas após cinco minutos.
+                    pass  # O agente aborta transações abandonadas após um minuto sem contato.
             self.journal.fechar()
 
     def _baixar(self, operacao, total, gravar, progresso):

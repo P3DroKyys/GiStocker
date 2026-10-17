@@ -14,6 +14,8 @@ import win32security
 
 from servico.protocolo import LIMITE, ler, serializar
 
+ERROS_TRANSPORTE = (OSError, pywintypes.error)
+
 
 def nome_pipe(raiz, producao=False):
     if producao:
@@ -41,9 +43,15 @@ def atributos(producao=False, raiz=None):
         arquivo = Path(raiz)/'operadores.json'
         if arquivo.stat().st_size>8192:
             raise ValueError('Configuração de operadores inválida.')
-        for sid in json.loads(arquivo.read_text(encoding='utf-8-sig')):
+        operadores = json.loads(arquivo.read_text(encoding='utf-8-sig'))
+        if not isinstance(operadores, list) or not all(isinstance(sid, str) for sid in operadores):
+            raise ValueError('Configuração de operadores inválida: informe uma lista de SIDs.')
+        for sid in operadores:
             # Canonicalizar evita injeção de fragmentos SDDL.
-            canonico=win32security.ConvertSidToStringSid(win32security.ConvertStringSidToSid(sid))
+            try:
+                canonico=win32security.ConvertSidToStringSid(win32security.ConvertStringSidToSid(sid))
+            except pywintypes.error:
+                raise ValueError('Configuração de operadores inválida: SID inválido.') from None
             sddl += f'(A;;0x12019b;;;{canonico})'
     sd = win32security.ConvertStringSecurityDescriptorToSecurityDescriptor(sddl,win32security.SDDL_REVISION_1)
     sa = pywintypes.SECURITY_ATTRIBUTES()
@@ -109,12 +117,12 @@ def servir(nucleo, raiz, parar, producao=False):
     handle = win32pipe.CreateNamedPipe(nome,win32pipe.PIPE_ACCESS_DUPLEX|0x00080000,
         win32pipe.PIPE_TYPE_BYTE|win32pipe.PIPE_READMODE_BYTE|win32pipe.PIPE_NOWAIT|win32pipe.PIPE_REJECT_REMOTE_CLIENTS,
         1,65536,65536,1000,atributos(producao,raiz))
-    ultima = 0
+    proxima_manutencao = 0
+    falhas_manutencao = 0
     try:
         while not parar.is_set():
-            if time.monotonic()-ultima>1:
-                nucleo.manutencao()
-                ultima = time.monotonic()
+            if not producao and nucleo.deve_encerrar():
+                break
             try:
                 win32pipe.ConnectNamedPipe(handle,None)
             except pywintypes.error as erro:
@@ -122,6 +130,19 @@ def servir(nucleo, raiz, parar, producao=False):
                     win32pipe.DisconnectNamedPipe(handle)
                     continue
                 if erro.winerror==536:
+                    if time.monotonic() >= proxima_manutencao:
+                        try:
+                            nucleo.manutencao()
+                        except Exception as falha:
+                            from utils.erros import registrar_falha
+                            registrar_falha(falha, pasta=Path(raiz)/'logs')
+                            falhas_manutencao += 1
+                            nucleo.falha_manutencao = 'A manutenção do agente falhou. Nova tentativa agendada; consulte o registro de erros.'
+                            proxima_manutencao = time.monotonic() + min(30, 2 ** min(falhas_manutencao, 5))
+                        else:
+                            falhas_manutencao = 0
+                            nucleo.falha_manutencao = None
+                            proxima_manutencao = time.monotonic() + 1
                     parar.wait(.02)
                     continue
                 if erro.winerror!=535:
@@ -129,7 +150,13 @@ def servir(nucleo, raiz, parar, producao=False):
             try:
                 pedido = receber(handle,3)
                 identidade = identidade_cliente(handle)
-                enviar(handle,nucleo.executar(pedido,identidade))
+                resposta = nucleo.executar(pedido,identidade)
+                try:
+                    enviar(handle,resposta)
+                except ValueError:
+                    # Serialização ocorre antes de escrever qualquer byte no pipe.
+                    enviar(handle,dict(v=resposta['v'],id=resposta['id'],ok=False,erro='ValueError',
+                                       mensagem='Resposta extensa demais ou incompatível. Refine o filtro ou carregue outra página.'))
                 # Espera o cliente consumir antes de DisconnectNamedPipe descartar buffers.
                 limite = time.monotonic()+3
                 while time.monotonic()<limite:

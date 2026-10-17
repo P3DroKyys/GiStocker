@@ -179,21 +179,35 @@ class ControladorEstoque:
             raise ErroNegocio(f"Produto #{produto_id} não encontrado.")
         return produto
 
-    def listar_produtos(self) -> list[Produto]:
-        return self.produtos.listar_todos()
+    @staticmethod
+    def _validar_pagina(limite, offset=0):
+        if (limite is not None and (type(limite) is not int or not 1 <= limite <= 1000)
+                or type(offset) is not int or offset < 0):
+            raise ValueError('Página inválida. Informe de 1 a 1000 registros e posição não negativa.')
 
-    def buscar_produtos(self, termo: str) -> list[Produto]:
-        return self.produtos.buscar(termo)
+    def listar_produtos(self, limite=None, offset=0) -> list[Produto]:
+        self._validar_pagina(limite, offset)
+        return self.produtos.listar_todos(limite, offset)
 
-    def pesquisar_produtos(self, termo: str):
+    def buscar_produtos(self, termo: str, limite=None, offset=0) -> list[Produto]:
+        self._validar_pagina(limite, offset)
+        return self.produtos.buscar(termo, limite, offset)
+
+    def pesquisar_produtos(self, termo: str, limite=None, offset=0):
         """Pesquisa por relevância, com sugestões quando não há resultado direto."""
-        return self.produtos.pesquisar(termo)
+        self._validar_pagina(limite, offset)
+        resultado = self.produtos.pesquisar(termo)
+        resultado.produtos = resultado.produtos[offset:offset + limite if limite is not None else None]
+        return resultado
 
     def listar_codigos(self, produto_id: int) -> list[str]:
         return self.codigos.listar_por_produto(produto_id)
 
-    def listar_logs(self, limite: int | None = None, produto_id: int | None = None) -> list[dict]:
-        return self.logs.listar(limite=limite, produto_id=produto_id)
+    def listar_logs(self, limite: int = 200, produto_id: int | None = None, antes_id=None) -> list[dict]:
+        self._validar_pagina(limite)
+        if limite is None or antes_id is not None and (type(antes_id) is not int or antes_id < 1):
+            raise ValueError('Informe um limite e um cursor válido para o histórico.')
+        return self.logs.listar(limite=limite, produto_id=produto_id, antes_id=antes_id)
 
     # ---------------------------------------------------------------- #
     # Cadastro e códigos de barras
@@ -452,8 +466,14 @@ class ControladorRelatorios:
         receita_potencial (estoque x preço base) e total_produtos."""
         return self.relatorios.totais_estoque()
 
+    @staticmethod
+    def _validar_dias(dias) -> None:
+        if type(dias) is not int or not 1 <= dias <= config.MAXIMO_DIAS_RELATORIO:
+            raise ErroNegocio(f"Informe um período de 1 a {config.MAXIMO_DIAS_RELATORIO} dias.")
+
     def movimentacao_ultimos_dias(self, dias: int = config.DIAS_GRAFICO_MOVIMENTACAO):
         """Séries diárias para o gráfico de barras: (datas, entradas, saidas)."""
+        self._validar_dias(dias)
         hoje = date.today()
         inicio = hoje - timedelta(days=dias - 1)
         entradas: dict[str, int] = {}
@@ -487,7 +507,8 @@ class ControladorRelatorios:
 
     def estoque_parado(self, dias: int = config.DIAS_ESTOQUE_PARADO_PADRAO) -> list[dict]:
         """Produtos com estoque e sem saída há ``dias`` dias."""
-        limite = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d %H:%M:%S")
+        self._validar_dias(dias)
+        limite =(datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d %H:%M:%S")
         return [dict(l) for l in self.relatorios.produtos_sem_saida_desde(limite)]
 
     def exportar_protegido(self, pasta=None):

@@ -1,5 +1,5 @@
 """Campo de senha reutilizável e tela de desbloqueio da aplicação."""
-from models.seguranca import ERROS_BANCO, ErroSeguranca
+from models.seguranca import ERROS_BANCO, ErroSeguranca, validar_nova_senha
 
 import customtkinter as ctk
 from PIL import Image
@@ -106,18 +106,31 @@ class TelaAcesso(ctk.CTkFrame):
             ctk.CTkLabel(cartao, text="Confirme a nova senha", anchor="w").pack(fill="x", padx=30, pady=(10, 4))
             self.confirmacao = CampoSenha(cartao)
             self.confirmacao.pack(fill="x", padx=30)
-            self.confirmacao.entrada.bind("<Return>", self._entrar)
         for tecla in ("<Return>", "<KP_Enter>"):
             self.campo_senha.entrada.bind(tecla, self._entrar)
+            if self.nova_senha:
+                # Enter na nova senha leva à confirmação; na confirmação, envia.
+                self.nova_senha.entrada.bind(tecla, self._avancar)
+                self.confirmacao.entrada.bind(tecla, self._entrar)
         self.mensagem = ctk.CTkLabel(cartao, text="", wraplength=350,
                                      text_color=COR_TEXTO_ERRO)
         self.mensagem.pack(fill="x", padx=30, pady=(8, 4))
         self.botao_entrar = ctk.CTkButton(cartao, text="Proteger e abrir" if self.modo != "protegido" else "Desbloquear", height=44, command=self._entrar)
         self.botao_entrar.pack(fill="x", padx=30, pady=(0, 30))
 
+    def _avancar(self, _evento=None):
+        self.confirmacao.entrada.focus_set()
+        return "break"
+
     def _entrar(self, _evento=None):
         if self._ocupado:
             return
+        if self.modo in ('novo', 'legado'):
+            try:
+                validar_nova_senha(self.nova_senha.get(), self.confirmacao.get())
+            except ValueError as falha:
+                self.mensagem.configure(text=str(falha))
+                return
         self._ocupado = True
         self.botao_entrar.configure(state="disabled")
         for campo in (self.campo_senha, self.nova_senha, self.confirmacao):

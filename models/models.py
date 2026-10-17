@@ -145,7 +145,7 @@ class _SomaInteira:
 class BancoDados:
     """Gerencia a conexão SQLite, a criação do esquema e as transações."""
 
-    VERSAO_ESQUEMA = 2
+    VERSAO_ESQUEMA = 3
 
     def __init__(self, caminho: str | Path = config.CAMINHO_BANCO,
                  backup_automatico: bool = True, timeout: float = 5.0,
@@ -211,6 +211,12 @@ class BancoDados:
                     migrar(self.conexao)
                 else:
                     self.conexao.execute("PRAGMA user_version = 2")
+            if versao < 3:
+                from multicanal.esquema import INDICES
+                for nome, instrucao in INDICES.items():
+                    if not self.conexao.execute('SELECT 1 FROM sqlite_master WHERE name=?', (nome,)).fetchone():
+                        self.conexao.execute(instrucao)
+                self.conexao.execute('PRAGMA user_version = 3')
 
     def criar_backup(self, pasta: str | Path | None = None) -> Path:
         """Cria snapshot SQLite consistente, único e verificado, sem sobrescrever."""
@@ -400,11 +406,16 @@ class RepositorioProdutos:
             (produto.nome, produto.marca, produto.categoria, produto.preco_venda_base, produto.id),
         )
 
-    def listar_todos(self) -> list[Produto]:
-        linhas = self.bd.buscar_todos(SQL_PRODUTO_BASE + " ORDER BY p.nome COLLATE NOCASE")
+    def listar_todos(self, limite=None, offset=0) -> list[Produto]:
+        sql = SQL_PRODUTO_BASE + " ORDER BY p.nome COLLATE NOCASE, p.id"
+        parametros = ()
+        if limite is not None:
+            sql += ' LIMIT ? OFFSET ?'
+            parametros = (limite, offset)
+        linhas = self.bd.buscar_todos(sql, parametros)
         return [_para_produto(l) for l in linhas]
 
-    def buscar(self, termo: str, limite: int | None = None) -> list[Produto]:
+    def buscar(self, termo: str, limite: int | None = None, offset=0) -> list[Produto]:
         """Busca inteligente por "split-string LIKE".
 
         O termo é normalizado e dividido em palavras; TODAS precisam aparecer
@@ -417,19 +428,21 @@ class RepositorioProdutos:
         if palavras:
             condicoes = []
             for palavra in palavras:
-                curinga = f"%{palavra}%"
+                # %, _ e \ digitados são texto, nunca curingas do LIKE.
+                literal = palavra.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                curinga = f"%{literal}%"
                 condicoes.append(
-                    "(normalizar(p.nome) LIKE ? OR normalizar(p.marca) LIKE ? "
-                    "OR normalizar(p.categoria) LIKE ? "
+                    "(normalizar(p.nome) LIKE ? ESCAPE '\\' OR normalizar(p.marca) LIKE ? ESCAPE '\\' "
+                    "OR normalizar(p.categoria) LIKE ? ESCAPE '\\' "
                     "OR EXISTS (SELECT 1 FROM Codigos_Barras c "
-                    "           WHERE c.produto_id = p.id AND c.codigo LIKE ?))"
+                    "           WHERE c.produto_id = p.id AND c.codigo LIKE ? ESCAPE '\\'))"
                 )
                 parametros.extend([curinga] * 4)
             sql += " WHERE " + " AND ".join(condicoes)
-        sql += " ORDER BY p.nome COLLATE NOCASE"
+        sql += " ORDER BY p.nome COLLATE NOCASE, p.id"
         if limite is not None:
-            sql += " LIMIT ?"
-            parametros.append(limite)
+            sql += " LIMIT ? OFFSET ?"
+            parametros.extend((limite, offset))
         return [_para_produto(l) for l in self.bd.buscar_todos(sql, parametros)]
 
     def listar_para_exportacao(self) -> list[dict]:
@@ -508,18 +521,24 @@ class RepositorioLogs:
         self.bd.executar("UPDATE Logs_Movimentacao SET cancelado = 1 WHERE id = ?", (log_id,))
 
     def listar(self, limite: int | None = None, produto_id: int | None = None,
-               incluir_cancelados: bool = True) -> list[dict]:
+               incluir_cancelados: bool = True, antes_id=None) -> list[dict]:
         """Histórico (mais recente primeiro) já com nome/marca/categoria do produto."""
         sql = """
             SELECT l.*,
                    CASE WHEN l.tipo = ? THEN l.estoque_anterior - l.quantidade
                         ELSE l.estoque_anterior + l.quantidade END AS estoque_posterior,
-                   p.nome AS produto_nome, p.marca AS produto_marca, p.categoria AS produto_categoria
+                   p.nome AS produto_nome, p.marca AS produto_marca, p.categoria AS produto_categoria,
+                   coalesce(e.origem, 'FISICO') AS origem, e.referencia, e.criado AS registrado_utc
               FROM Logs_Movimentacao l
               JOIN Produtos p ON p.id = l.produto_id
+              LEFT JOIN Eventos_Estoque e ON e.id = (
+                  SELECT id FROM Eventos_Estoque WHERE log_id=l.id ORDER BY id LIMIT 1)
         """
         parametros: list[Any] = [config.TIPO_SAIDA]
         condicoes = []
+        if antes_id is not None:
+            condicoes.append('l.id < ?')
+            parametros.append(antes_id)
         if produto_id is not None:
             condicoes.append("l.produto_id = ?")
             parametros.append(produto_id)

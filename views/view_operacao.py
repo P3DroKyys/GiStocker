@@ -13,13 +13,12 @@ from __future__ import annotations
 import tkinter as tk
 
 import sqlite3
-from models.seguranca import ERROS_BANCO, ERROS_OPERACIONAIS, ErroSeguranca
-from utils.erros import mensagem_falha
+from models.seguranca import ERROS_OPERACIONAIS
+from utils.erros import ERROS_EXIBIVEIS, mensagem_falha
 
 import customtkinter as ctk
 
 import config
-from controllers.controllers import ErroNegocio
 from utils.texto import formatar_data_hora, formatar_inteiro, formatar_moeda
 from views.componentes import (
     COR_PERIGO, COR_TEXTO_ERRO, COR_TEXTO_INFO, COR_TEXTO_SUAVE, COR_TEXTO_SUCESSO,
@@ -212,7 +211,11 @@ class ViewOperacao(ctk.CTkFrame):
         codigo = self.entrada_codigo.get().strip()
         if not codigo:
             return
-        produto = self.controlador.resolver_codigo_barras(codigo)
+        try:
+            produto = self.controlador.resolver_codigo_barras(codigo)
+        except ERROS_EXIBIVEIS as falha:
+            self._definir_status(mensagem_falha(falha), "erro")
+            return
         if produto is None:
             self._limpar_produto()
             self._definir_status(f"Código {codigo} não cadastrado.", "erro")
@@ -248,7 +251,7 @@ class ViewOperacao(ctk.CTkFrame):
             else:
                 resultado = self.controlador.registrar_saida(
                     self.produto_atual.id, self.entrada_quantidade.get())
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             self._definir_status(mensagem_falha(falha), "erro")
             self.entrada_quantidade.focus_set()
             self.entrada_quantidade.select_range(0, "end")
@@ -280,7 +283,7 @@ class ViewOperacao(ctk.CTkFrame):
             return
         try:
             resultado = self.controlador.desfazer_ultima_acao(log_id_esperado=log.id)
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Desfazer", mensagem_falha(falha))
             return
         self._definir_status(

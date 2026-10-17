@@ -28,10 +28,12 @@ class Pendencias:
                     UUID(v)
             else: self.dados={}
             self.chave=hashlib.sha256(assinatura.encode('utf-8')).hexdigest()
-            id_pedido=self.dados.setdefault(self.chave,str(uuid4()))
+            # Cada ação é nova; apenas o chamador repete o UUID durante esta chamada.
+            id_pedido=str(uuid4())
+            self.dados={self.chave:id_pedido}
             gravar_atomico(self.caminho,self.dados)
             return id_pedido
-        except Exception:
+        except (OSError, ValueError, TypeError):
             self.fechar()
             raise ErroSeguranca('Não foi possível preservar o identificador da operação. Nenhuma solicitação de gravação foi enviada.') from None
 

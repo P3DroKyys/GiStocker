@@ -40,6 +40,8 @@ TELAS = [
     ("relatorios", "Relatórios", "F4", ViewRelatorios),
     ("admin",      "Admin",      "F5", ViewAdmin),
 ]
+# No Tk para Windows, 0x8 (Mod1) é NumLock e Alt é 0x20000; no X11, Alt é Mod1.
+MASCARA_ALT = 0x20000 if sys.platform == "win32" else 0x8
 
 
 class JanelaPrincipal(ctk.CTk):
@@ -71,7 +73,8 @@ class JanelaPrincipal(ctk.CTk):
         self._inatividade = self.after(1000, self._conferir_inatividade)
         for evento in ("<KeyPress>", "<ButtonPress>", "<MouseWheel>"):
             self.bind_all(evento, self._registrar_atividade, add="+")
-        self.bind("<Control-l>", lambda _e: self.bloquear())
+        for tecla in ("<Control-l>", "<Control-L>"):   # Caps Lock entrega o keysym maiúsculo
+            self.bind(tecla, lambda _e: self.bloquear())
         self.tela_acesso = TelaAcesso(self, preferencias, self._liberar_acesso)
         self.tela_acesso.grid(row=0, column=0, columnspan=2, sticky="nsew")
         self._foco_acesso = self.after(150, self._focar_acesso)
@@ -133,9 +136,14 @@ class JanelaPrincipal(ctk.CTk):
         self.container.grid_columnconfigure(0, weight=1)
 
         for chave, _, atalho, _ in TELAS:
-            self.bind(f"<{atalho}>", lambda e, c=chave: self.mostrar_view(c) if not e.state & 0x2000 and not e.state & 0x8 else None)
+            self.bind(f"<{atalho}>", lambda e, c=chave: self._atalho_tela(e, c))
 
         self.mostrar_view("operacao")
+
+    def _atalho_tela(self, evento, chave: str) -> None:
+        # Alt+F4 fecha a janela; NumLock, CapsLock e ScrollLock não alteram o atalho.
+        if not evento.state & MASCARA_ALT:
+            self.mostrar_view(chave)
 
     # ------------------------------------------------------------------ #
     # Barra lateral
@@ -174,6 +182,11 @@ class JanelaPrincipal(ctk.CTk):
             botao.grid(row=indice, column=0, padx=12, pady=3, sticky="ew")
             self.botoes_navegacao[chave] = botao
         barra.grid_columnconfigure(0, weight=1)
+
+        aviso = getattr(self.preferencias, 'ultimo_status', {}).get('aviso')
+        if aviso:
+            ctk.CTkLabel(barra, text=aviso, wraplength=180, justify='left',
+                         text_color=('#8A5700', '#FFC76D')).grid(row=9, column=0, padx=16, pady=12, sticky='ew')
 
         botao = ctk.CTkButton(barra, text="⚙   Configurações", anchor="w", height=44,
                               fg_color="transparent", hover_color=("#DDE5F0", "#293342"),
@@ -258,8 +271,12 @@ class JanelaPrincipal(ctk.CTk):
             elif time.monotonic() - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
                 if dialogo:
                     dialogo.fechar()
-                self.bloquear()
-        if self._desbloqueado and time.monotonic() - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
+                    self.bloquear()
+                else:
+                    # Seletor de arquivos nativo aberto: destruir a janela agora quebraria a
+                    # chamada em curso. O seletor bloqueia assim que fechar (gestao_dados).
+                    self._bloqueio_pendente = True
+        elif self._desbloqueado and time.monotonic() - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
             self.bloquear()
         self._inatividade = self.after(1000, self._conferir_inatividade)
 

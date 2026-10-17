@@ -61,7 +61,7 @@ class PipeWindows(unittest.TestCase):
         self.cliente.fechar()
         with self.assertRaises(Exception): estoque.listar_produtos()
 
-    def test_resposta_perdida_e_nova_interface_nao_repetem_baixa(self):
+    def test_resposta_perdida_e_nova_acao_tem_outro_identificador(self):
         from servico.pipe import chamar
         from models.seguranca import ErroSeguranca
         self.cliente.abrir('','teste-ipc-739','teste-ipc-739')
@@ -74,8 +74,8 @@ class PipeWindows(unittest.TestCase):
             with self.assertRaises(ErroSeguranca): estoque.registrar_saida(1,2)
         nova=Cliente(self.raiz); nova.sessao=self.cliente.sessao
         resultado=nova.chamar('estoque.registrar_saida',1,2)
-        self.assertEqual(resultado.estoque_novo,8)
-        self.assertEqual(estoque.obter_produto(1).estoque_atual,8)
+        self.assertEqual(resultado.estoque_novo,6)
+        self.assertEqual(estoque.obter_produto(1).estoque_atual,6)
         self.assertEqual((self.raiz/'comandos_pendentes.json').read_text(encoding='utf-8'),'{}')
 
     def test_dacl_rejeita_token_restrito(self):

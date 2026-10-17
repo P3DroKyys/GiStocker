@@ -1,5 +1,6 @@
 """Alocação e pedidos transacionais. Rede fica fora das transações do banco."""
 import json
+import inspect
 import secrets
 from functools import wraps
 from uuid import uuid4
@@ -42,9 +43,10 @@ class Motor:
                          (chave, pid, delta, origem, natureza, referencia, log_id))
 
     @atomico
-    def preparar(self):
+    def preparar(self, produto_id=None):
         # Saldo de abertura não duplica o histórico: é o ponto inicial do novo livro.
-        for p in self.estoque.listar_produtos():
+        produtos = self.estoque.listar_produtos() if produto_id is None else [self.estoque.obter_produto(produto_id)]
+        for p in produtos:
             if not self.linha('SELECT id FROM Eventos_Estoque WHERE produto_id=?', (p.id,)):
                 self.evento('abertura:' + str(p.id), p.id, p.estoque_atual, 'FISICO', 'ABERTURA')
             self.con.execute('INSERT OR IGNORE INTO Politicas_Alocacao(produto_id) VALUES(?)', (p.id,))
@@ -70,23 +72,31 @@ class Motor:
 
     @atomico
     def fisico(self, metodo, args, kwargs, chave):
-        anteriores = {p.id: p.estoque_atual for p in self.estoque.listar_produtos()}
+        operacao = getattr(self.estoque, metodo)
+        parametros = inspect.signature(operacao).bind(*args, **kwargs).arguments
+        pid = parametros.get('produto_id')
         maxlog = self.con.execute('SELECT coalesce(max(id),0) FROM Logs_Movimentacao').fetchone()[0]
         if metodo == 'desfazer_ultima_acao':
             ultima = self.estoque.obter_ultima_acao()
             if ultima and self.linha("SELECT 1 FROM Eventos_Estoque WHERE log_id=? AND origem<>'FISICO'", (ultima.log.id,)):
                 raise ErroNegocio('Pedidos online devem ser compensados no painel de pedidos.')
-        resultado = getattr(self.estoque, metodo)(*args, **kwargs)
-        for p in self.estoque.listar_produtos():
-            antes = anteriores.get(p.id, 0)
+            pid = ultima.produto.id if ultima else None
+        elif metodo == 'desvincular_codigo_barras':
+            pid = self.estoque.codigos.buscar_produto_id(parametros['codigo'])
+        antes = self.estoque.obter_produto(pid).estoque_atual if pid is not None else 0
+        resultado = operacao(*args, **kwargs)
+        if metodo == 'cadastrar_produto':
+            pid = resultado.id
+        if pid is not None:
+            p = self.estoque.obter_produto(pid)
             if p.estoque_atual < antes:
-                self.exigir_saldo(p.id, p.estoque_atual)
-            logs = self.linhas('SELECT id FROM Logs_Movimentacao WHERE id>? AND produto_id=?', (maxlog,p.id))
-            if p.id not in anteriores or p.estoque_atual != antes or logs or metodo == 'desfazer_ultima_acao' and resultado and resultado.produto.id == p.id:
-                ref = str(resultado.log.id) if metodo == 'desfazer_ultima_acao' else None
-                self.evento(chave + ':' + str(p.id), p.id, p.estoque_atual-antes, 'FISICO',
-                            'COMPENSACAO' if ref else metodo, ref, logs[-1]['id'] if logs else None)
-        self.preparar()
+                self.exigir_saldo(pid, p.estoque_atual)
+            log = self.linha('SELECT id FROM Logs_Movimentacao WHERE produto_id=? AND id>? ORDER BY id DESC LIMIT 1', (pid,maxlog))
+            ref = str(resultado.log.id) if metodo == 'desfazer_ultima_acao' else None
+            if metodo == 'cadastrar_produto' or p.estoque_atual != antes or log or ref:
+                self.evento(chave + ':' + str(pid), pid, p.estoque_atual-antes, 'FISICO',
+                            'COMPENSACAO' if ref else metodo, ref, log['id'] if log else None)
+            self.preparar(pid)
         return resultado
 
     @atomico
@@ -124,7 +134,7 @@ class Motor:
 
     @atomico
     def alocar(self, produto_id):
-        self.preparar()
+        self.preparar(produto_id)
         s = self.saldo(produto_id)
         cob = self.linhas('SELECT * FROM Cobertura_Produto_Canal WHERE produto_id=?', (produto_id,))
         pendente = any(c['estado']=='PENDENTE_VINCULO' for c in cob)
@@ -200,8 +210,13 @@ class Motor:
             self.con.execute('UPDATE Pedidos_Externos SET estado=? WHERE id=?',(next(iter(estados)) if len(estados)==1 else 'MISTO',pedido))
 
     @atomico
-    def processar_inbox(self):
-        for entrada in self.linhas("SELECT * FROM Inbox_Eventos WHERE estado='PENDENTE' ORDER BY recebido,chave"):
+    def processar_inbox(self, chave=None):
+        sql = "SELECT * FROM Inbox_Eventos WHERE estado='PENDENTE'"
+        parametros = ()
+        if chave is not None:
+            sql += ' AND chave=?'
+            parametros = (chave,)
+        for entrada in self.linhas(sql + ' ORDER BY recebido,chave', parametros):
             e = json.loads(entrada['conteudo'])
             v = self.linha('SELECT v.produto_id,l.canal FROM Vinculos_SKU v JOIN Catalogo_Remoto c ON c.id=v.remoto JOIN Lojas_Externas l ON l.id=c.loja WHERE v.remoto=? AND c.loja=?',(e['remoto'],e['loja']))
             if not v:
@@ -295,9 +310,9 @@ class Motor:
 
     def painel(self):
         return dict(produtos=[self.saldo(p.id) for p in self.estoque.listar_produtos()],
-                    catalogo=self.linhas('SELECT c.*,l.canal,v.produto_id FROM Catalogo_Remoto c JOIN Lojas_Externas l ON l.id=c.loja LEFT JOIN Vinculos_SKU v ON v.remoto=c.id'),
+                    catalogo=self.linhas('SELECT c.*,l.canal,v.produto_id FROM Catalogo_Remoto c JOIN Lojas_Externas l ON l.id=c.loja LEFT JOIN Vinculos_SKU v ON v.remoto=c.id ORDER BY c.id'),
                     cobertura=self.linhas('SELECT * FROM Cobertura_Produto_Canal'),
-                    pedidos=self.linhas('SELECT * FROM Itens_Pedido_Externo'),
+                    pedidos=self.linhas('SELECT * FROM Itens_Pedido_Externo ORDER BY pedido_id,linha'),
                     incidentes=self.linhas('SELECT * FROM Incidentes_Sync WHERE resolvido=0'),
                     exposicao=self.linhas('SELECT * FROM Estado_SKU_Canal'),
                     fila=self.linhas("SELECT * FROM Outbox_Comandos WHERE estado NOT IN('CONFIRMADO','SUPERADO')"),

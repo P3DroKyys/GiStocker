@@ -1,13 +1,14 @@
 """Fachada MVC. A interface não recebe chave, conexão nem caminho de escrita."""
 from functools import partial
+from pathlib import Path
 import json
 from types import SimpleNamespace
 from uuid import uuid4
 
 from controllers.controllers import ControladorEstoque, ErroNegocio
-from models.seguranca import ErroSeguranca
+from models.seguranca import ErroSeguranca, ErroSessao
 from servico.nucleo import LEITURAS, ESCRITAS, RELATORIOS
-from servico.pipe import chamar, nome_pipe
+from servico.pipe import chamar, nome_pipe, ERROS_TRANSPORTE
 from servico.protocolo import VERSAO, decodificar
 from servico.pendencias import Pendencias
 
@@ -24,16 +25,36 @@ class Proxy:
         permitidos = LEITURAS|ESCRITAS if self.grupo=='estoque' else RELATORIOS
         if nome not in permitidos:
             raise AttributeError(nome)
+        if self.grupo == 'estoque' and nome in ('listar_produtos', 'buscar_produtos', 'pesquisar_produtos'):
+            return partial(self._listar, nome)
         return partial(self.cliente.chamar,self.grupo+'.'+nome)
+
+    def _listar(self, nome, *args, **kwargs):
+        # Filtros locais do catálogo recebem a lista completa em mensagens limitadas.
+        if 'limite' in kwargs or 'offset' in kwargs:
+            return self.cliente.chamar(self.grupo+'.'+nome, *args, **kwargs)
+        resultado = None
+        offset = 0
+        while True:
+            pagina = self.cliente.chamar(self.grupo+'.'+nome, *args, limite=200, offset=offset, **kwargs)
+            itens = pagina.produtos if nome == 'pesquisar_produtos' else pagina
+            tamanho = len(itens)
+            if resultado is None:
+                resultado = pagina
+            else:
+                (resultado.produtos if nome == 'pesquisar_produtos' else resultado).extend(itens)
+            if tamanho < 200:
+                return resultado
+            offset += tamanho
 
 
 class Cliente:
     def __init__(self, raiz, producao=False):
+        self.raiz = Path(raiz)
         self.nome = nome_pipe(raiz,producao)
         self.producao = producao
         self.sessao = None
         self.banco = None  # apenas sentinela de sessão para compatibilidade visual
-        self.pendentes = {}
         self.ao_indisponivel = None
         self.journal = Pendencias(raiz,producao)
         self.ultimo_status = {'modo':'protegido','tema':'dark'}
@@ -43,9 +64,8 @@ class Cliente:
         mutacao = (comando.startswith('estoque.') and comando.split('.',1)[1] in ESCRITAS or
                    comando in ('integracoes.vincular','integracoes.cobertura','integracoes.politica','integracoes.receber','integracoes.pedido_operar','integracoes.catalogo_exemplo'))
         try:
-            if mutacao:
-                self.pendentes[assinatura] = self.journal.iniciar(assinatura)
-            resultado=self._enviar(comando,args,kwargs,assinatura)
+            chave = self.journal.iniciar(assinatura) if mutacao else str(uuid4())
+            resultado=self._enviar(comando,args,kwargs,chave,mutacao)
             if mutacao:
                 self.journal.confirmar()
             return resultado
@@ -57,29 +77,30 @@ class Cliente:
             if mutacao:
                 self.journal.fechar()
 
-    def _enviar(self, comando, args, kwargs, assinatura):
-        chave = self.pendentes.get(assinatura) or str(uuid4())
+    def _enviar(self, comando, args, kwargs, chave, repetir=False):
         pedido = dict(v=VERSAO,id=chave,sessao=self.sessao,comando=comando,args=list(args),kwargs=kwargs)
-        try:
-            resposta = chamar(self.nome,pedido,self.producao)
-        except Exception:
-            if (comando.startswith('estoque.') and comando.split('.',1)[1] in ESCRITAS or
-                    comando in ('integracoes.vincular','integracoes.cobertura','integracoes.politica','integracoes.receber','integracoes.pedido_operar','integracoes.catalogo_exemplo')):
-                self.pendentes[assinatura] = chave
-            if self.ao_indisponivel:
-                self.ao_indisponivel()
-            raise ErroSeguranca('O serviço local não respondeu. Nenhuma gravação direta foi realizada. Ao repetir esta mesma operação, o identificador será preservado.') from None
+        for tentativa in range(2 if repetir else 1):
+            try:
+                resposta = chamar(self.nome,pedido,self.producao)
+                break
+            except ERROS_TRANSPORTE:
+                if repetir and tentativa == 0:
+                    continue
+                raise ErroSeguranca('O serviço local não respondeu. Confira o histórico antes de iniciar outra operação: a gravação pode ter sido concluída.') from None
         if resposta.get('id')!=chave or resposta.get('v')!=VERSAO:
             raise ErroSeguranca('Resposta incompatível do serviço.')
         if not resposta.get('ok'):
-            if resposta.get('erro')=='ErroSeguranca' and self.sessao and self.ao_indisponivel:
+            sessao_invalida = resposta.get('codigo')=='SESSAO'
+            if sessao_invalida and self.sessao and self.ao_indisponivel:
                 self.ao_indisponivel()
-            classe = ErroNegocio if resposta.get('erro')=='ErroNegocio' else ValueError if resposta.get('erro') in ('ValueError','TypeError') else ErroSeguranca
+            classe = (ErroSessao if sessao_invalida else ErroNegocio if resposta.get('erro')=='ErroNegocio'
+                      else ValueError if resposta.get('erro') in ('ValueError','TypeError') else ErroSeguranca)
             raise classe(resposta.get('mensagem','Operação não concluída.'))
-        self.pendentes.pop(assinatura,None)
         resultado=decodificar(resposta['resultado'])
         if comando=='status':
             self.ultimo_status=resultado
+        elif comando=='login':
+            self.ultimo_status['aviso']=resposta.get('aviso')
         return resultado
 
     @property
@@ -92,6 +113,12 @@ class Cliente:
         except ErroSeguranca: return self.ultimo_status['tema']
 
     def abrir(self, senha, nova=None, confirmacao=None):
+        if not self.producao:
+            from servico.executar import garantir_agente
+            try:
+                garantir_agente(self.raiz, False)
+            except RuntimeError as erro:
+                raise ErroSeguranca(str(erro)) from None
         self.sessao = self.chamar('login',senha,nova,confirmacao)
         self.banco = SimpleNamespace(_fechado=False,criptografado=True)
 

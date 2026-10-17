@@ -118,8 +118,10 @@ class ViewDashboard(ctk.CTkFrame):
     # ------------------------------------------------------------------ #
     def atualizar(self) -> None:
         try:
-            dias_parado = max(1, converter_para_int(self.entrada_dias.get()))
+            dias_parado = converter_para_int(self.entrada_dias.get())
         except ValueError:
+            dias_parado = None
+        if dias_parado is None or not 1 <= dias_parado <= config.MAXIMO_DIAS_RELATORIO:
             dias_parado = config.DIAS_ESTOQUE_PARADO_PADRAO
             self.entrada_dias.delete(0, "end")
             self.entrada_dias.insert(0, str(dias_parado))

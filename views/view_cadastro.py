@@ -12,13 +12,12 @@ Recursos:
 from __future__ import annotations
 
 import sqlite3
-from models.seguranca import ERROS_BANCO, ERROS_OPERACIONAIS, ErroSeguranca
-from utils.erros import mensagem_falha
+from models.seguranca import ERROS_OPERACIONAIS
+from utils.erros import ERROS_EXIBIVEIS, mensagem_falha
 
 import customtkinter as ctk
 
 import config
-from controllers.controllers import ErroNegocio
 from utils.texto import sugerir_categoria, sugerir_marca
 from views.componentes import (
     COR_TEXTO_SUAVE, COR_TEXTO_SUCESSO, ListaCodigos, alertar, erro, informar,
@@ -175,7 +174,7 @@ class ViewCadastro(ctk.CTkFrame):
         # internos ou truncar a leitura do scanner para fabricar um código válido.
         try:
             codigo = self.controlador.validar_codigo_barras(self.entrada_codigo.get())
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Código de barras", mensagem_falha(falha))
             self.entrada_codigo.focus_set()
             return False
@@ -207,7 +206,7 @@ class ViewCadastro(ctk.CTkFrame):
                 quantidade_inicial=self.entrada_quantidade.get() or "0",
                 codigos=self.lista_codigos.obter(),
             )
-        except (ErroNegocio, ErroSeguranca, *ERROS_BANCO, OSError) as falha:
+        except ERROS_EXIBIVEIS as falha:
             erro("Não foi possível salvar", mensagem_falha(falha))
             return
         codigos = ", ".join(produto.codigos) or "nenhum"

@@ -48,7 +48,7 @@ class Dominio(unittest.TestCase):
         return self.m.linha('SELECT id FROM Itens_Pedido_Externo')['id']
 
     def test_migracao_e_immutabilidade(self):
-        self.assertEqual(self.bd.conexao.execute('PRAGMA user_version').fetchone()[0],2)
+        self.assertEqual(self.bd.conexao.execute('PRAGMA user_version').fetchone()[0],BancoDados.VERSAO_ESQUEMA)
         for sql in ('DELETE FROM Eventos_Estoque','UPDATE Eventos_Estoque SET delta=0'):
             with self.assertRaises(sqlite3.IntegrityError): self.m.con.execute(sql)
 
@@ -195,6 +195,9 @@ class Servico(unittest.TestCase):
 
     def test_senha_bloqueio_e_expiracao(self):
         self.assertFalse(self.call('senha',['errada','outra-senha-48','outra-senha-48'])['ok'])
+        # BUG-29: a troca de senha também tem limitador; a repetição imediata espera.
+        self.assertIn('Aguarde', self.call('senha',['teste-seguro-47','outra-senha-48','outra-senha-48'])['mensagem'])
+        self.n.tentativas.clear()   # simula o fim do intervalo
         self.assertTrue(self.call('senha',['teste-seguro-47','outra-senha-48','outra-senha-48'])['ok'])
         self.n.sessoes[self.token]['uso']-=5401
         self.assertFalse(self.call('estoque.listar_produtos')['ok'])
@@ -268,7 +271,7 @@ class Servico(unittest.TestCase):
         cofre=CofreServico(raiz)
         try:
             cofre.abrir('senha-antiga-73')
-            self.assertEqual(cofre.banco.conexao.execute('PRAGMA user_version').fetchone()[0],2)
+            self.assertEqual(cofre.banco.conexao.execute('PRAGMA user_version').fetchone()[0],BancoDados.VERSAO_ESQUEMA)
             self.assertEqual(cofre.banco.conexao.execute('SELECT estoque_atual FROM Produtos').fetchone()[0],7)
             self.assertEqual(hashlib.sha256(caminho.read_bytes()).digest(),antes)
         finally: cofre.fechar()

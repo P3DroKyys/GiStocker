@@ -117,7 +117,8 @@ class ViewIntegracoes(ctk.CTkFrame):
         self.remotos={c['id']:c for c in (sim or {}).get('catalogo',[])}
         for c in self.remotos.values():
             self.catalogo.insert('','end',iid=c['id'],values=(c['canal'],c['titulo']+' '+c['variacao'],c['gtin'] or 'Não informado',c['produto_id'] or 'Pendente'))
-        self.itens={str(i):p for i,p in enumerate((sim or {}).get('pedidos',[]))}
+        # O id do item identifica a linha entre atualizações; a posição muda com novos pedidos.
+        self.itens={p['id']:p for p in (sim or {}).get('pedidos',[])}
         for i,p in self.itens.items():
             self.pedidos.insert('','end',iid=i,values=(p['produto_id'],p['quantidade'],p['cancelada'],p['estado']))
         for tabela in (self.cotas,self.catalogo,self.pedidos):

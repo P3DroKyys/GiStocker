@@ -13,6 +13,8 @@ from gestao import backup, planilha
 from gestao.arquivos import BLOCO, LIMITE_ARQUIVO, json_bytes
 from models.seguranca import ErroSeguranca
 
+SEGUNDOS_ABANDONO = 60
+
 
 class GestaoDados:
     def __init__(self, cofre):
@@ -25,13 +27,18 @@ class GestaoDados:
     def ocupado(self):
         return self.job is not None
 
+    @property
+    def abandonado(self):
+        """O cliente ativo conversa sem pausas; o silêncio indica interface encerrada."""
+        return self.job is not None and time.monotonic() - self.job['uso'] > SEGUNDOS_ABANDONO
+
     def fechar(self):
         if self.job and self.job.get('gerador'):
             self.job['gerador'].close()  # GeneratorExit provoca rollback pelo context manager.
         self.job = None
 
     def manutencao(self):
-        if self.job and time.monotonic() - self.job['uso'] > 300:
+        if self.abandonado:
             self.fechar()
 
     def _senha(self, senha):
@@ -136,11 +143,13 @@ class GestaoDados:
                 except Exception as erro:
                     if j['gerador']:
                         j['gerador'].close()
-                    from utils.erros import registrar_falha
-                    registrar_falha(erro)
+                    if not isinstance(erro, ValueError):   # validação do arquivo não é falha técnica
+                        from utils.erros import registrar_falha
+                        registrar_falha(erro, pasta=self.cofre.raiz / 'logs')
                     j.update(erro=str(erro) if isinstance(erro, ValueError) else
                              'Falha ao processar o arquivo. Nenhuma alteração deste lote foi confirmada. Confira formato, espaço e permissões.',
                              gerador=None, entrada=bytearray())
+            j['uso'] = time.monotonic()   # um passo longo não conta como silêncio do cliente
         elif comando == 'baixar':
             if len(args) != 1 or type(args[0]) is not int or not 0 <= args[0] <= len(j['saida']) or not j['concluido']:
                 raise ValueError('Download indisponível.')

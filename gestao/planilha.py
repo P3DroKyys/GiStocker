@@ -1,7 +1,6 @@
 """CSV UTF-8 para Excel. GTIN sempre textual; quantidade é uma entrada aditiva."""
 import csv
 import io
-import re
 
 import config
 from controllers.controllers import (ControladorEstoque, ErroNegocio, agora_texto,
@@ -9,9 +8,12 @@ from controllers.controllers import (ControladorEstoque, ErroNegocio, agora_text
 from models.models import LogMovimentacao
 from multicanal.motor import Motor
 from utils.gtin import validar_gtin
+from utils.texto import converter_para_int, normalizar_texto
 
 CABECALHOS = ('codigo', 'nome', 'marca', 'categoria', 'quantidade', 'preco_venda_base', 'custo_unitario')
 LIMITE_LINHAS = 100_000
+MARCAS = {normalizar_texto(m): m for m in config.MARCAS}
+CATEGORIAS = {normalizar_texto(c): c for c in config.CATEGORIAS}
 
 
 def modelo():
@@ -52,13 +54,19 @@ def validar(valores):
     codigo = validar_gtin(codigo)
     if not nome or len(nome) > 500:
         raise ValueError('Informe um nome com 1 a 500 caracteres.')
-    if marca not in config.MARCAS or categoria not in config.CATEGORIAS:
+    # Grava sempre a grafia do cadastro; a planilha pode variar caixa e acentos.
+    marca, categoria = MARCAS.get(normalizar_texto(marca)), CATEGORIAS.get(normalizar_texto(categoria))
+    if marca is None or categoria is None:
         raise ValueError('Marca ou categoria não cadastrada no sistema.')
-    if not re.fullmatch('[0-9]+', quantidade) or len(quantidade) > 19 or int(quantidade) > config.LIMITE_QUANTIDADE:
-        raise ValueError('Quantidade: use um inteiro não negativo, sem separador de milhar.')
+    try:
+        quantidade = converter_para_int(quantidade)   # mesma regra das telas: "1.000" vale 1000
+        if quantidade < 0:
+            raise ValueError
+    except ValueError:
+        raise ValueError('Quantidade: use um inteiro não negativo, como 12 ou 1.000.') from None
     preco = _validar_valor_monetario(preco, 'Preço de venda') if preco else None
     custo = _validar_valor_monetario(custo, 'Custo unitário') if custo else None
-    return codigo, nome, marca, categoria, int(quantidade), preco, custo
+    return codigo, nome, marca, categoria, quantidade, preco, custo
 
 
 def importar(banco, conteudo, lote, recibo):
@@ -89,11 +97,12 @@ def importar(banco, conteudo, lote, recibo):
                             p = movimento.produto
                         else:
                             # Quantidade zero permite corrigir custo e preço sem simular entrada.
-                            log_id = c.logs.inserir(LogMovimentacao(
-                                None, p.id, config.TIPO_AJUSTE, 0,
-                                p.custo_medio if custo is None else custo, agora_texto(),
-                                p.estoque_atual, p.custo_medio, observacao=observacao))
+                            # Só a troca de custo vira Ajuste no histórico (e pode ser desfeita).
+                            log_id = None
                             if custo is not None:
+                                log_id = c.logs.inserir(LogMovimentacao(
+                                    None, p.id, config.TIPO_AJUSTE, 0, custo, agora_texto(),
+                                    p.estoque_atual, p.custo_medio, observacao=observacao))
                                 p.custo_medio = round(custo, config.CASAS_DECIMAIS_CUSTO)
                                 c.produtos.atualizar_estoque_custo(p.id, p.estoque_atual, p.custo_medio)
                         p.nome, p.marca, p.categoria = nome, marca, categoria

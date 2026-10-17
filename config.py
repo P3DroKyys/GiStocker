@@ -26,6 +26,9 @@ INSTALADO = getattr(sys, "frozen", False) and (DIRETORIO_BASE / "instalado.flag"
 if INSTALADO:
     DIRETORIO_DADOS = Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'GiStocker'
 DIRETORIO_EXPORTACOES = DIRETORIO_BASE / "exportacoes"
+# Instalado, Program Files e ProgramData não aceitam escrita do operador.
+DIRETORIO_LOGS = (Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'GiStocker' if INSTALADO
+                  else DIRETORIO_BASE)
 CAMINHO_BANCO = DIRETORIO_DADOS / "estoque.db"
 CAMINHO_PREFERENCIAS = DIRETORIO_DADOS / "configuracoes.db"
 # Recursos empacotados ficam em _internal; dados continuam junto do executável.
@@ -38,6 +41,7 @@ CAMINHO_ICONE = DIRETORIO_RECURSOS / "icone_gistocker.ico"
 # --------------------------------------------------------------------------- #
 NOME_APP = "GiStocker · Gestão de estoque"
 VERSAO_APP = "2.0.0-preview.1"
+SEGUNDOS_OCIOSIDADE_AGENTE = 60
 MINIMO_CARACTERES_SENHA = 6
 MINUTOS_BLOQUEIO_INATIVIDADE = 90
 APARENCIA_PADRAO = "dark"        # "light", "dark" ou "system"
@@ -53,6 +57,8 @@ ALTURA_MINIMA = 680
 PERMITIR_ESTOQUE_NEGATIVO = False      # False = bloqueia saídas maiores que o estoque
 DIAS_ESTOQUE_PARADO_PADRAO = 30        # "Estoque Parado": sem saída há X dias
 DIAS_GRAFICO_MOVIMENTACAO = 30         # janela do gráfico Entradas x Saídas
+MAXIMO_DIAS_RELATORIO = 3650           # períodos de relatório: de 1 dia a 10 anos
+BACKUPS_MANTIDOS = 30                  # .gsbackup automáticos (diários e de restauração) preservados
 TAMANHO_CURVA_A = 5                    # quantidade de itens exibidos na Curva A
 QTD_MOVIMENTACOES_RECENTES = 8         # lista lateral da tela de operação
 CASAS_DECIMAIS_CUSTO = 4               # precisão interna do custo médio ponderado

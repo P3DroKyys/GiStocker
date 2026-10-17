@@ -10,14 +10,17 @@ import json
 import os
 from pathlib import Path
 import secrets
+import shutil
 import tempfile
 from uuid import uuid4
 import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+import config
 from models.models import BancoDados
-from models.seguranca import (Cofre, ErroSeguranca, TravaSessao, conectar,
+from models.seguranca import (Cofre, ErroSeguranca, ErroAutenticacao, ERROS_BANCO, TravaSessao, conectar,
                               conferir_integridade, copiar_protegido, validar_nova_senha)
 
 AAD = b'GiStocker/envelope/v2'
@@ -46,9 +49,14 @@ def desembrulhar(envelope, senha):
         sal, nonce, cifrado = (base64.b64decode(envelope[k],validate=True) for k in ('sal','nonce','cifrado'))
         if len(sal)!=16 or len(nonce)!=12 or len(cifrado)!=80:
             raise ValueError()
+    except (KeyError, TypeError, ValueError):
+        raise ErroSeguranca('Envelope inválido. Restaure uma cópia protegida íntegra.') from None
+    try:
         return AESGCM(derivar(senha,sal)).decrypt(nonce,cifrado,AAD).decode('ascii')
-    except Exception:
-        raise ErroSeguranca('Senha incorreta ou envelope danificado.') from None
+    except InvalidTag:
+        raise ErroAutenticacao('Senha incorreta ou envelope danificado.') from None
+    except UnicodeDecodeError:
+        raise ErroSeguranca('Conteúdo do envelope inválido.') from None
 
 
 def gravar_atomico(caminho, dados):
@@ -72,10 +80,14 @@ class CofreServico:
         self.caminho = self.pasta/'estoque.db'
         self.exportacoes = self.raiz/'exportacoes'
         origem = self.raiz/'portatil_importado' if (self.raiz/'portatil_importado').is_dir() else self.raiz
-        self.legado = Cofre(origem/'estoque.db',origem/'configuracoes.db',self.raiz.parent/'exportacoes')
+        # Portátil: <pasta>/dados + <pasta>/exportacoes. Instalado, o legado só existe como cópia
+        # importada; o pai de ProgramData\GiStocker não pertence ao aplicativo.
+        exportacoes = origem/'exportacoes' if config.INSTALADO else self.raiz.parent/'exportacoes'
+        self.legado = Cofre(origem/'estoque.db',origem/'configuracoes.db',exportacoes)
         self.banco = None
         self.chave = None
         self.trava = None
+        self.aviso_backup = None
 
     def ler_envelope(self):
         if self.envelope.stat().st_size>8192:
@@ -97,14 +109,28 @@ class CofreServico:
         try:
             self.banco = BancoDados(self.caminho,senha=chave,backup_automatico=False)
             self.chave = chave
+        except BaseException:
+            self.fechar()
+            raise
+        self.aviso_backup = None
+        try:
             backups = self.raiz/'backups'
             hoje = datetime.now(timezone.utc).strftime('%Y%m%d')
             if not any(backups.glob('GiStocker_'+hoje+'_*.gsbackup')):
                 self.exportar(backups)
-            return self.banco
-        except BaseException:
-            self.fechar()
-            raise
+                self._podar_backups(backups)
+        except (OSError, *ERROS_BANCO, ErroSeguranca) as falha:
+            from utils.erros import registrar_falha
+            registrar_falha(falha, pasta=self.raiz/'logs')
+            self.aviso_backup = 'Backup diário não pôde ser criado. Confira o espaço e as permissões da pasta de backups.'
+        return self.banco
+
+    @staticmethod
+    def _podar_backups(pasta):
+        """Mantém só os .gsbackup automáticos mais recentes; .gsa legados não são tocados."""
+        copias = sorted(pasta.glob('GiStocker_*.gsbackup'), key=lambda p: p.stat().st_mtime_ns, reverse=True)
+        for antiga in copias[config.BACKUPS_MANTIDOS:]:
+            antiga.unlink()
 
     def abrir(self, senha, nova=None, confirmacao=None):
         if not self.pasta.exists():
@@ -116,13 +142,14 @@ class CofreServico:
     def _migrar(self, senha, nova, confirmacao):
         modo = self.legado.modo
         senha_efetiva = nova if modo in ('novo','legado') else senha
+        if modo in ('novo', 'legado'):
+            validar_nova_senha(nova,confirmacao)
         destino = self.raiz/('.cofre_' + uuid4().hex)
         destino.mkdir()
         trava_antiga = None
         try:
             chave = secrets.token_hex(32)
             if modo=='novo':
-                validar_nova_senha(nova,confirmacao)
                 BancoDados(destino/'estoque.db',senha=chave,criar=True,backup_automatico=False).fechar()
             else:
                 if modo=='legado':
@@ -147,7 +174,10 @@ class CofreServico:
             self.legado.fechar()
             if trava_antiga:
                 trava_antiga.fechar()
-            # Se interrompido, preserva staging cifrado para diagnóstico, sem fallback.
+            if destino.exists():
+                if destino.resolve().parent != self.raiz:
+                    raise ErroSeguranca('O diretório de preparação mudou. Limpeza interrompida.')
+                shutil.rmtree(destino)
 
     def verificar_senha(self, senha):
         try:
@@ -161,7 +191,7 @@ class CofreServico:
             raise ErroSeguranca('Desbloqueie o sistema.')
         validar_nova_senha(nova,confirmacao)
         e = self.ler_envelope()
-        chave = desembrulhar(e['senha'],antiga)
+        chave = desembrulhar(e['senha'],antiga)   # ErroAutenticacao: o Nucleo limita e informa
         if antiga==nova:
             raise ValueError('Escolha uma senha diferente da atual.')
         e['senha'] = embrulhar(chave,nova)

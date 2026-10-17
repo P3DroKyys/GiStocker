@@ -39,6 +39,8 @@ $sidOperador = ([Security.Principal.NTAccount]::new($Operador)).Translate([Secur
 $anterior = Get-CimInstance Win32_Service -Filter "Name='GiStocker'" -ErrorAction SilentlyContinue
 $caminhoAnterior = if ($anterior) { $anterior.PathName } else { $null }
 $eraAtivo = $anterior -and $anterior.State -eq 'Running'
+$arquivoOperadores = Join-Path $raizDados 'operadores.json'
+$operadoresAnteriores = if (Test-Path -LiteralPath $arquivoOperadores) { [IO.File]::ReadAllBytes($arquivoOperadores) } else { $null }
 
 try {
     if (-not (Get-LocalGroup -Name $nomeGrupo -ErrorAction SilentlyContinue)) {
@@ -67,11 +69,24 @@ try {
     }
     Set-Acl -LiteralPath $raizDados -AclObject $acl
     $operadoresJson = Join-Path $raizDados 'operadores.json'
-    $operadores = @($sidOperador.Value)
+    $operadores = [Collections.Generic.List[string]]::new()
+    $operadores.Add($sidOperador.Value)
     if (Test-Path -LiteralPath $operadoresJson) {
-        $operadores += @(Get-Content -LiteralPath $operadoresJson -Raw | ConvertFrom-Json)
+        $existentes = Get-Content -LiteralPath $operadoresJson -Raw | ConvertFrom-Json
+        if ($existentes -isnot [array]) { throw 'Configuração de operadores inválida.' }
+        foreach ($sid in $existentes) {
+            if ($sid -isnot [string]) { throw 'Configuração de operadores inválida.' }
+            $canonico = [Security.Principal.SecurityIdentifier]::new($sid).Value
+            if (-not $operadores.Contains($canonico)) { $operadores.Add($canonico) }
+        }
     }
-    ConvertTo-Json -InputObject @($operadores | Select-Object -Unique) | Set-Content -LiteralPath $operadoresJson -Encoding UTF8
+    ConvertTo-Json -InputObject ([string[]]$operadores) | Set-Content -LiteralPath $operadoresJson -Encoding UTF8
+    $gravados = Get-Content -LiteralPath $operadoresJson -Raw | ConvertFrom-Json
+    if ($gravados -isnot [array] -or $gravados.Count -ne $operadores.Count) { throw 'Configuração de operadores inválida.' }
+    foreach ($sid in $gravados) {
+        if ($sid -isnot [string] -or -not $operadores.Contains($sid)) { throw 'Configuração de operadores inválida.' }
+        [void][Security.Principal.SecurityIdentifier]::new($sid)
+    }
     # Exportações são cifradas e podem ser copiadas pelos operadores.
     $exportacoes = Join-Path $raizDados 'exportacoes'
     New-Item -ItemType Directory -Path $exportacoes -Force | Out-Null
@@ -92,6 +107,11 @@ try {
     if ($verificacao.ExitCode -ne 0) { throw 'Health check do serviço falhou.' }
     exit 0
 } catch {
+    if ($null -ne $operadoresAnteriores) {
+        [IO.File]::WriteAllBytes($arquivoOperadores, [byte[]]$operadoresAnteriores)
+    } elseif (Test-Path -LiteralPath $arquivoOperadores) {
+        Remove-Item -LiteralPath $arquivoOperadores
+    }
     # Cada versão fica em seu diretório; basta restaurar o caminho do serviço.
     try {
         Parar-Agente

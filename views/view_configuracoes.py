@@ -100,9 +100,9 @@ class ViewConfiguracoes(ctk.CTkFrame):
         try:
             self.janela.preferencias.alterar_senha(
                 self.senha_atual.get(), self.nova_senha.get(), self.confirmacao.get())
-        except ValueError as falha:
+        except (ValueError, ErroSeguranca) as falha:   # recusas do serviço trazem o motivo
             self.mensagem.configure(text=str(falha), text_color=COR_TEXTO_ERRO)
-        except (*ERROS_BANCO, OSError, ErroSeguranca, ErroPreferencias):
+        except (*ERROS_BANCO, OSError, ErroPreferencias):
             self.mensagem.configure(text="Não foi possível salvar a senha. Confira o espaço livre e "
                                         "as permissões da pasta dados.", text_color=COR_TEXTO_ERRO)
         else:

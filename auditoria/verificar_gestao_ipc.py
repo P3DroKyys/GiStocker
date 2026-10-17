@@ -45,7 +45,7 @@ class Transferencias(unittest.TestCase):
         self.assertEqual(self.cliente.chamar('estoque.obter_produto', 1).estoque_atual, 3)
         self.assertTrue(any(p[0] == 'Recebimento do resultado' and p[1] == p[2] for p in progresso))
 
-    def test_resposta_perdida_depois_commit_nao_soma_duas_vezes(self):
+    def test_resposta_perdida_depois_commit_e_nova_importacao(self):
         entrada = self.preparar()
         def perder(nome, pedido, producao):
             resposta = chamar(nome, pedido, producao)
@@ -58,8 +58,8 @@ class Transferencias(unittest.TestCase):
         self.assertEqual(self.cliente.chamar('estoque.obter_produto', 1).estoque_atual, 3)
         self.assertNotEqual(json.loads((self.raiz / 'gestao_pendentes.json').read_text()), {})
         resultado = Transferencia(self.cliente).executar('importar', entrada, 'senha-transferencia', lambda *p: None)
-        self.assertEqual(resultado['novos'], 2)
-        self.assertEqual(self.cliente.chamar('estoque.obter_produto', 1).estoque_atual, 3)
+        self.assertEqual(resultado['novos'], 0)
+        self.assertEqual(self.cliente.chamar('estoque.obter_produto', 1).estoque_atual, 6)
         self.assertEqual(json.loads((self.raiz / 'gestao_pendentes.json').read_text()), {})
 
     def test_encerramento_brusco_rollback_sqlcipher(self):

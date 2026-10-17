@@ -107,7 +107,7 @@ def restaurar(cofre, conteudo, recibo):
     pacote = ler_json(conteudo)
     if (type(pacote) is not dict or set(pacote) != {'formato', 'versao', 'esquema', 'criado_utc', 'tabelas'}
             or pacote['formato'] != 'GiStocker-dados' or type(pacote['versao']) is not int or pacote['versao'] != 1
-            or type(pacote['esquema']) is not int or pacote['esquema'] != BancoDados.VERSAO_ESQUEMA
+            or type(pacote['esquema']) is not int or pacote['esquema'] not in (2, 3)
             or type(pacote['tabelas']) is not dict or set(pacote['tabelas']) != set(TABELAS_BACKUP)):
         raise ValueError('Formato ou versão de backup incompatível.')
     tabelas = pacote['tabelas']

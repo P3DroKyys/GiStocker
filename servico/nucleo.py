@@ -9,9 +9,9 @@ from uuid import UUID
 import config
 from controllers.controllers import ControladorRelatorios, ErroNegocio
 from models.models import BancoDados
-from models.seguranca import ErroSeguranca, copiar_protegido
+from models.seguranca import ErroSeguranca, ErroAutenticacao, ErroSessao, copiar_protegido
 from multicanal.motor import Motor
-from multicanal.sincronizacao import MarketplaceSimulado, Worker
+from multicanal.sincronizacao import MarketplaceSimulado, WorkerAssincrono
 from servico.cofre import CofreServico
 from servico.gestao import GestaoDados
 from servico.protocolo import VERSAO, codificar, serializar
@@ -19,17 +19,30 @@ from servico.protocolo import VERSAO, codificar, serializar
 LEITURAS = {'resolver_codigo_barras','obter_produto','listar_produtos','buscar_produtos','pesquisar_produtos','listar_codigos','listar_logs','obter_ultima_acao','validar_codigo_barras'}
 ESCRITAS = {'cadastrar_produto','vincular_codigo_barras','desvincular_codigo_barras','registrar_entrada','registrar_saida','ajustar_produto','desfazer_ultima_acao'}
 RELATORIOS = {'obter_kpis','movimentacao_ultimos_dias','ranking_marcas','ranking_categorias','curva_a','estoque_parado'}
+# comando -> (estado de destino, estados de origem permitidos). ENCERRANDO só termina em FISICO.
+TRANSICOES = {
+    'ativar_simulacao': ('MULTICANAL_CONFIGURANDO', ('FISICO', 'MULTICANAL_CONFIGURANDO')),
+    'iniciar_ensaio': ('MULTICANAL_ATIVO', ('MULTICANAL_CONFIGURANDO', 'MULTICANAL_PAUSADO', 'MULTICANAL_ATIVO')),
+    'pausar': ('MULTICANAL_PAUSADO', ('MULTICANAL_ATIVO', 'MULTICANAL_PAUSADO')),
+    'encerrar': ('ENCERRANDO_MULTICANAL', ('MULTICANAL_CONFIGURANDO', 'MULTICANAL_ATIVO',
+                                           'MULTICANAL_PAUSADO', 'ENCERRANDO_MULTICANAL')),
+}
 
 
 class Nucleo:
-    def __init__(self, raiz):
+    def __init__(self, raiz, producao=False):
+        from servico.executar import revisao_codigo
+        self.revisao = revisao_codigo()
+        self.producao = producao
+        self.encerrar_solicitado = False
+        self._ocioso_desde = time.monotonic()
         self.cofre = CofreServico(raiz)
         self.gestao = GestaoDados(self.cofre)
         self.sessoes = {}
-        self.tentativas = 0
-        self.login_depois = 0
+        self.tentativas = {}   # identidade Windows -> (falhas seguidas, liberado em)
         self.motor = self.simulacao = self.worker = None
         self.falha_inicio = None
+        self.falha_manutencao = None
         try:
             if self.cofre.abrir_segundo_plano():
                 self._preparar()
@@ -52,7 +65,7 @@ class Nucleo:
         if not caminho.exists():
             copiar_protegido(self.cofre.banco.conexao,caminho)
         self.simulacao = Motor(BancoDados(caminho,senha=self.cofre.chave,backup_automatico=False))
-        self.worker = Worker(self.simulacao,MarketplaceSimulado(self.simulacao.bd))
+        self.worker = WorkerAssincrono(caminho,self.cofre.chave,MarketplaceSimulado(self.simulacao.bd))
 
     def manutencao(self):
         self.gestao.manutencao()
@@ -72,6 +85,8 @@ class Nucleo:
 
     def _fechar_dados(self):
         self.gestao.fechar()
+        if self.worker:
+            self.worker.fechar()
         if self.simulacao:
             self.simulacao.bd.fechar()
         self.simulacao = self.worker = self.motor = None
@@ -81,14 +96,26 @@ class Nucleo:
         self.sessoes.clear()
         self._fechar_dados()
 
+    def deve_encerrar(self):
+        if self.producao:
+            return False
+        if self.sessoes or self.simulacao or self.gestao.ocupado:
+            self._ocioso_desde = None
+            return False
+        if self._ocioso_desde is None:
+            self._ocioso_desde = time.monotonic()
+        return self.encerrar_solicitado or time.monotonic() - self._ocioso_desde >= config.SEGUNDOS_OCIOSIDADE_AGENTE
+
     def executar(self, pedido, identidade):
         request_id = pedido.get('id') if isinstance(pedido,dict) else None
         try:
             resultado = self._executar(pedido,identidade)
-            return {'v':VERSAO,'id':request_id,'ok':True,'resultado':codificar(resultado)}
+            return {'v':VERSAO,'id':request_id,'ok':True,'resultado':codificar(resultado),
+                    'aviso':self.cofre.aviso_backup}
         except (ErroNegocio,ErroSeguranca,ValueError,TypeError) as erro:
             texto = str(erro) if not isinstance(erro,TypeError) else 'Parâmetros incompatíveis com esta operação.'
-            return {'v':VERSAO,'id':request_id,'ok':False,'erro':type(erro).__name__,'mensagem':texto}
+            return {'v':VERSAO,'id':request_id,'ok':False,'erro':type(erro).__name__,'mensagem':texto,
+                    'codigo':'SESSAO' if isinstance(erro,ErroSessao) else None}
         except Exception:
             return {'v':VERSAO,'id':request_id,'ok':False,'erro':'Operacional','mensagem':'Operação não concluída. Confira o serviço, a integridade e o espaço disponível. Não repita com outro identificador sem conferir o resultado.'}
 
@@ -102,28 +129,34 @@ class Nucleo:
         if comando=='status':
             if args or kwargs:
                 raise ValueError('Status não aceita parâmetros.')
-            return {'modo':self.cofre.modo,'tema':self.cofre.obter_tema(),'servico':'online','aviso':self.falha_inicio}
+            return {'modo':self.cofre.modo,'tema':self.cofre.obter_tema(),'servico':'online',
+                    'versao':config.VERSAO_APP,'revisao':self.revisao,
+                    'aviso':self.falha_manutencao or self.cofre.aviso_backup or self.falha_inicio}
+        if comando == 'encerrar_agente':
+            if args or kwargs:
+                raise ValueError('Encerramento não aceita parâmetros.')
+            self.encerrar_solicitado = not (self.producao or self.sessoes or self.simulacao or self.gestao.ocupado)
+            return self.encerrar_solicitado
         if comando=='login':
-            if self.gestao.ocupado:
+            if self.gestao.ocupado and not self.gestao.abandonado:
                 raise ValueError('Gestão de dados em andamento. Aguarde a conclusão.')
-            if time.monotonic()<self.login_depois:
-                raise ErroSeguranca('Aguarde antes de tentar novamente.')
+            self._exigir_intervalo(identidade)
             if len(args)!=3 or kwargs:
                 raise ValueError('Login inválido.')
             try:
                 self.cofre.abrir(*args)
-            except Exception:
-                self.tentativas += 1
-                self.login_depois = time.monotonic()+min(300,2**min(self.tentativas,8))
-                raise ErroSeguranca('Senha incorreta ou dados indisponíveis. Nenhum acesso foi liberado.') from None
-            self.tentativas = 0
+            except ErroAutenticacao:
+                self._registrar_tentativa(identidade)
+                raise ErroAutenticacao('Senha incorreta ou envelope danificado. Nenhum acesso foi liberado.') from None
+            self.tentativas.pop(identidade, None)
+            self.gestao.fechar()   # só resta job aqui se ele foi abandonado: reverte o lote órfão
             self._preparar()
             token = secrets.token_urlsafe(32)
             self.sessoes[token] = {'identidade':identidade,'uso':time.monotonic()}
             return token
         sessao = self.sessoes.get(p['sessao']) if isinstance(p['sessao'],str) else None
         if not sessao or sessao['identidade']!=identidade or time.monotonic()-sessao['uso']>=config.MINUTOS_BLOQUEIO_INATIVIDADE*60:
-            raise ErroSeguranca('Sessão bloqueada. Desbloqueie o software novamente.')
+            raise ErroSessao('Sessão bloqueada. Desbloqueie o software novamente.')
         if comando.startswith('dados.'):
             sessao['uso'] = time.monotonic()
             metodo = comando.split('.', 1)[1]
@@ -149,7 +182,13 @@ class Nucleo:
         if comando=='tema':
             return self.cofre.definir_tema(*args,**kwargs)
         if comando=='senha':
-            resultado = self.cofre.alterar_senha(*args,**kwargs)
+            self._exigir_intervalo(identidade)
+            try:
+                resultado = self.cofre.alterar_senha(*args,**kwargs)
+            except ErroAutenticacao:
+                self._registrar_tentativa(identidade)
+                raise ValueError('A senha atual está incorreta.') from None
+            self.tentativas.pop(identidade, None)
             self.sessoes = {p['sessao']:sessao}
             return resultado
         if comando=='backup':
@@ -170,14 +209,16 @@ class Nucleo:
         inspect.signature(getattr(alvo,metodo)).bind(*args,**kwargs)
         if metodo in ESCRITAS:
             return self._idempotente(self.cofre.banco,p['id'],[comando,args,kwargs],lambda:self.motor.fisico(metodo,args,kwargs,p['id']))
-        resultado = getattr(alvo,metodo)(*args,**kwargs)
-        if metodo=='listar_logs':
-            for log in resultado:
-                ev = self.motor.linha('SELECT origem,referencia,criado FROM Eventos_Estoque WHERE log_id=? ORDER BY id LIMIT 1',(log['id'],))
-                log['origem'] = ev['origem'] if ev else 'FISICO'
-                log['referencia'] = ev['referencia'] if ev else None
-                log['registrado_utc'] = ev['criado'] if ev else None
-        return resultado
+        return getattr(alvo,metodo)(*args,**kwargs)
+
+    def _exigir_intervalo(self, identidade):
+        # Por identidade: uma conta errando a senha não atrasa as demais.
+        if time.monotonic() < self.tentativas.get(identidade, (0, 0))[1]:
+            raise ErroSeguranca('Aguarde antes de tentar novamente.')
+
+    def _registrar_tentativa(self, identidade):
+        falhas = self.tentativas.get(identidade, (0, 0))[0] + 1
+        self.tentativas[identidade] = (falhas, time.monotonic() + min(300, 2 ** min(falhas, 8)))
 
     def _idempotente(self, banco, chave, parametros, funcao):
         from servico.protocolo import decodificar
@@ -199,26 +240,40 @@ class Nucleo:
                 'local':[self.motor.saldo(p.id) for p in self.motor.estoque.listar_produtos()],
                 'simulacao':self.simulacao.painel() if self.simulacao else None}
 
+    def _exigir_origem(self, comando):
+        """Estado atual, desde que ``comando`` seja permitido a partir dele."""
+        estado = self.cofre.banco.conexao.execute('SELECT estado FROM Config_Multicanal').fetchone()[0]
+        if estado not in TRANSICOES[comando][1]:
+            raise ErroNegocio(f'Ação indisponível com a simulação no estado {estado}.')
+        return estado
+
+    def _definir_estado(self, comando):
+        with self.cofre.banco.transacao():
+            self.cofre.banco.conexao.execute('UPDATE Config_Multicanal SET estado=?', (TRANSICOES[comando][0],))
+
+    def _descartar_simulacao(self):
+        # Só ocorre no modo físico: a cópia anterior não está aberta nem em uso.
+        caminho = self.cofre.pasta/'simulacao.db'
+        for arquivo in (caminho, *(caminho.with_name(caminho.name + s) for s in ('-wal', '-shm', '-journal'))):
+            arquivo.unlink(missing_ok=True)
+
     def integracoes(self, comando, args, kwargs, chave):
         if comando=='ativar_simulacao':
+            if self._exigir_origem(comando) == 'FISICO' and not self.simulacao:
+                self._descartar_simulacao()   # um novo ensaio parte do estoque atual
             self._abrir_simulacao()
             self.cofre.permitir_segundo_plano(True)
-            with self.cofre.banco.transacao():
-                self.cofre.banco.conexao.execute("UPDATE Config_Multicanal SET estado='MULTICANAL_CONFIGURANDO'")
+            self._definir_estado(comando)
             return self.painel()
         if not self.simulacao:
             raise ErroNegocio('Ative o ambiente de simulação primeiro.')
-        if comando=='iniciar_ensaio':
-            with self.cofre.banco.transacao():
-                self.cofre.banco.conexao.execute("UPDATE Config_Multicanal SET estado='MULTICANAL_ATIVO'")
-            return None
-        if comando=='pausar':
-            with self.cofre.banco.transacao():
-                self.cofre.banco.conexao.execute("UPDATE Config_Multicanal SET estado='MULTICANAL_PAUSADO'")
+        if comando in ('iniciar_ensaio', 'pausar'):
+            self._exigir_origem(comando)
+            self._definir_estado(comando)
             return None
         if comando=='encerrar':
-            with self.cofre.banco.transacao():
-                self.cofre.banco.conexao.execute("UPDATE Config_Multicanal SET estado='ENCERRANDO_MULTICANAL'")
+            self._exigir_origem(comando)
+            self._definir_estado(comando)
             self.worker.retomar_em = 0
             self.worker.passo(encerrar=True)
             if not self._concluir_encerramento():
@@ -266,12 +321,15 @@ class Nucleo:
         raise ValueError('Operação de integração não disponível.')
 
     def _concluir_encerramento(self):
+        if not self.worker.encerramento_concluido:
+            return False
         pendente = self.simulacao.linha("SELECT 1 FROM Estado_SKU_Canal WHERE exposta>0 OR incerta=1") or self.simulacao.linha("SELECT 1 FROM Inbox_Eventos WHERE estado='PENDENTE'") or self.simulacao.linha('SELECT 1 FROM Reservas WHERE quantidade>0') or self.simulacao.linha("SELECT 1 FROM Itens_Pedido_Externo WHERE estado='DEVOLUCAO_EM_CONFERENCIA'")
         if pendente:
             return False
         with self.cofre.banco.transacao():
             self.cofre.banco.conexao.execute("UPDATE Config_Multicanal SET estado='FISICO'")
         self.cofre.permitir_segundo_plano(False)
+        self.worker.fechar()
         self.simulacao.bd.fechar()
         self.simulacao = self.worker = None
         return True

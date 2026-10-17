@@ -7,6 +7,7 @@ Usadas tanto pela camada de modelo (busca sem acentos) quanto pelas telas
 from __future__ import annotations
 
 import re
+import math
 import unicodedata
 from datetime import datetime
 
@@ -95,20 +96,25 @@ def formatar_data_hora(valor, com_hora: bool = True) -> str:
 # Conversão de valores digitados pelo usuário
 # --------------------------------------------------------------------------- #
 def converter_para_float(texto) -> float:
-    """Aceita '12,50', 'R$ 1.234,56' ou '1234.56'. Lança ValueError em PT-BR."""
+    """Milhares pt-BR; decimal com vírgula ou ponto com 1, 2 ou 4 casas."""
     if isinstance(texto, (int, float)):
-        return float(texto)
-    limpo = str(texto).strip().replace("R$", "").replace(" ", "")
-    if not limpo:
-        raise ValueError("Informe um valor numérico.")
-    if "," in limpo and "." in limpo:
-        limpo = limpo.replace(".", "").replace(",", ".")   # 1.234,56 -> 1234.56
-    elif "," in limpo:
-        limpo = limpo.replace(",", ".")                    # 12,50 -> 12.50
-    try:
-        return float(limpo)
-    except ValueError:
-        raise ValueError(f"Valor numérico inválido: '{texto}'.") from None
+        valor = float(texto)
+    else:
+        limpo = str(texto).strip()
+        if limpo.startswith('R$'):
+            limpo = limpo[2:].strip()
+        if not limpo:
+            raise ValueError("Informe um valor numérico.")
+        if re.fullmatch(r'[+-]?[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]+)?', limpo):
+            limpo = limpo.replace('.', '').replace(',', '.')
+        elif re.fullmatch(r'[+-]?[0-9]+(?:,[0-9]+|\.[0-9]{1,2}|\.[0-9]{4})?', limpo):
+            limpo = limpo.replace(',', '.')
+        else:
+            raise ValueError('Valor numérico inválido. Use vírgula decimal e ponto para milhares.')
+        valor = float(limpo)
+    if not math.isfinite(valor):
+        raise ValueError('Informe um valor numérico finito.')
+    return valor
 
 
 def converter_para_int(texto) -> int:

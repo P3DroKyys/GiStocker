@@ -79,8 +79,6 @@ class IndiceProdutos:
         if re.fullmatch(r'#[0-9]+', consulta):
             produto = self.produtos.get(int(consulta[1:]))
             return ResultadoPesquisa([produto] if produto else [])
-        if consulta.isascii() and consulta.isdigit() and len(consulta) in (8, 12, 13, 14):
-            return ResultadoPesquisa([], aviso='Código de barras não encontrado. Confira os dígitos.')
         palavras = list(dict.fromkeys(termos(consulta)))
         relevantes = [p for p in palavras if p not in PALAVRAS_LIGACAO]
         palavras = relevantes or palavras
@@ -104,4 +102,7 @@ class IndiceProdutos:
                     return (-pontos, normalizar_texto(self.produtos[pid].nome), pid)
 
                 return ResultadoPesquisa([self.produtos[i] for i in sorted(candidatos, key=ordem)], aproximada)
+        # Só depois de tentar trechos: 12 dígitos também podem ser o prefixo de um EAN-13.
+        if consulta.isascii() and consulta.isdigit() and len(consulta) in (8, 12, 13, 14):
+            return ResultadoPesquisa([], aviso='Código de barras não encontrado. Confira os dígitos.')
         return ResultadoPesquisa([])

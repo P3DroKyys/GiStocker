@@ -54,14 +54,18 @@ def _registrar_falha(erro: BaseException) -> None:
     """Grava o erro em erros.log ao lado do programa e avisa o usuário.
     Necessário porque o .exe roda sem console e, sem isso, uma falha na
     inicialização passaria despercebida."""
-    caminho_log = (config.DIRETORIO_DADOS if config.INSTALADO else config.DIRETORIO_BASE) / "erros.log"
+    auxiliar = any(arg in sys.argv for arg in ('--servico','--agente','--verificar-servico','--importar-portatil'))
+    # Serviço e helpers gravam junto aos dados; a interface, na pasta gravável do operador.
+    pasta_log = config.DIRETORIO_DADOS / "logs" if auxiliar else config.DIRETORIO_LOGS
+    caminho_log = pasta_log / "erros.log"
     try:
+        pasta_log.mkdir(parents=True, exist_ok=True)
         with open(caminho_log, "a", encoding="utf-8") as arquivo:
             arquivo.write(f"\n===== {datetime.now():%d/%m/%Y %H:%M:%S} =====\n")
             arquivo.write(type(erro).__name__ + "\n")
     except OSError:
         pass
-    if any(arg in sys.argv for arg in ('--servico','--agente','--verificar-servico','--importar-portatil')):
+    if auxiliar:
         return  # nunca abrir diálogos na sessão 0 ou em helpers do instalador
     try:
         from views.dialogos import mostrar_dialogo
@@ -89,7 +93,8 @@ if __name__ == "__main__":
             hospedar_servico()
         elif '--agente' in sys.argv:
             from servico.executar import executar
-            executar(config.DIRETORIO_DADOS)
+            raiz = sys.argv[sys.argv.index('--raiz')+1] if '--raiz' in sys.argv else config.DIRETORIO_DADOS
+            executar(raiz)
         else:
             main()
     except Exception as falha:  # noqa: BLE001

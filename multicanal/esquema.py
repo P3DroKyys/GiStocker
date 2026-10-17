@@ -50,6 +50,10 @@ TRIGGERS = {
     'eventos_sem_delete': "CREATE TRIGGER eventos_sem_delete BEFORE DELETE ON Eventos_Estoque BEGIN SELECT RAISE(ABORT,'Eventos imutaveis'); END",
 }
 TABELAS = {s.split()[2] for s in SQL.split(';') if s.strip()}
+INDICES = {
+    'idx_eventos_produto': 'CREATE INDEX idx_eventos_produto ON Eventos_Estoque(produto_id)',
+    'idx_eventos_log': 'CREATE INDEX idx_eventos_log ON Eventos_Estoque(log_id)',
+}
 
 
 def migrar(con):
@@ -64,6 +68,8 @@ def migrar(con):
 
 
 def conferir_objeto(tipo, nome, sql):
+    if tipo == 'index' and nome in INDICES:
+        return ' '.join((sql or '').split()) == INDICES[nome]
     if tipo == 'table' and nome in TABELAS:
         esperado = next(s.strip() for s in SQL.split(';') if s.strip() and s.split()[2] == nome)
         return ' '.join((sql or '').split()) == ' '.join(esperado.split())

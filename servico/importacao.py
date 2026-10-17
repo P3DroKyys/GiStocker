@@ -30,7 +30,7 @@ def importar_portatil(origem, destino):
             travas.append(TravaSessao(lock))
         staging=destino/('.importacao_'+uuid4().hex)
         staging.mkdir(parents=True)
-        arquivos=['estoque.db','estoque.db-wal','estoque.db-shm','acesso.json'] if v2 else ['estoque.db','estoque.db-wal','estoque.db-shm','configuracoes.db','tema.json']
+        arquivos=['estoque.db','estoque.db-wal','estoque.db-shm','acesso.json'] if v2 else ['estoque.db','estoque.db-wal','estoque.db-shm','configuracoes.db','aparencia.json']
         hashes={}
         for nome in arquivos:
             src=pasta/nome
