@@ -48,7 +48,7 @@ def gerar_build(projeto=None, executar=subprocess.run):
         raise RuntimeError('A geração terminou sem produzir o executável esperado.')
     # Documentação e avisos de licença acompanham a distribuição. O manifesto
     # permite conferir cópias; não substitui assinatura digital por certificado.
-    for nome in ('SEGURANCA.md', 'GUIA_MULTICANAL.md', 'RELATORIO_MULTICANAL.md'):
+    for nome in ('SEGURANCA.md', 'GUIA_MULTICANAL.md', 'RELATORIO_MULTICANAL.md', 'GESTAO_DADOS.md'):
         origem = projeto / nome
         if origem.is_file():
             shutil.copy2(origem, exe.parent / nome)

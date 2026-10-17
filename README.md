@@ -1,5 +1,13 @@
 # Gestor de Estoque – Cosméticos
 
+### Gestão de dados nas Configurações
+
+Backup completo em JSON, restauração com a senha da instalação atual e importação
+aditiva de produtos por CSV UTF-8 estão disponíveis na engrenagem de Configurações.
+A exportação JSON exige confirmação da senha e gera um arquivo **sem criptografia**;
+o banco local permanece criptografado. Consulte [o guia de gestão de dados](GESTAO_DADOS.md)
+para o modelo, regras de importação, cópia de segurança e limites.
+
 ### Busca automática no Admin — 1.2.0
 
 Em **Admin → Ajustes e códigos**, digite na barra para filtrar automaticamente.

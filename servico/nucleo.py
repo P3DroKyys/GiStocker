@@ -13,6 +13,7 @@ from models.seguranca import ErroSeguranca, copiar_protegido
 from multicanal.motor import Motor
 from multicanal.sincronizacao import MarketplaceSimulado, Worker
 from servico.cofre import CofreServico
+from servico.gestao import GestaoDados
 from servico.protocolo import VERSAO, codificar, serializar
 
 LEITURAS = {'resolver_codigo_barras','obter_produto','listar_produtos','buscar_produtos','pesquisar_produtos','listar_codigos','listar_logs','obter_ultima_acao','validar_codigo_barras'}
@@ -23,6 +24,7 @@ RELATORIOS = {'obter_kpis','movimentacao_ultimos_dias','ranking_marcas','ranking
 class Nucleo:
     def __init__(self, raiz):
         self.cofre = CofreServico(raiz)
+        self.gestao = GestaoDados(self.cofre)
         self.sessoes = {}
         self.tentativas = 0
         self.login_depois = 0
@@ -53,6 +55,9 @@ class Nucleo:
         self.worker = Worker(self.simulacao,MarketplaceSimulado(self.simulacao.bd))
 
     def manutencao(self):
+        self.gestao.manutencao()
+        if self.gestao.ocupado:
+            return
         agora = time.monotonic()
         self.sessoes = {k:v for k,v in self.sessoes.items() if agora-v['uso']<config.MINUTOS_BLOQUEIO_INATIVIDADE*60}
         if self.worker:
@@ -66,6 +71,7 @@ class Nucleo:
             self._fechar_dados()
 
     def _fechar_dados(self):
+        self.gestao.fechar()
         if self.simulacao:
             self.simulacao.bd.fechar()
         self.simulacao = self.worker = self.motor = None
@@ -98,6 +104,8 @@ class Nucleo:
                 raise ValueError('Status não aceita parâmetros.')
             return {'modo':self.cofre.modo,'tema':self.cofre.obter_tema(),'servico':'online','aviso':self.falha_inicio}
         if comando=='login':
+            if self.gestao.ocupado:
+                raise ValueError('Gestão de dados em andamento. Aguarde a conclusão.')
             if time.monotonic()<self.login_depois:
                 raise ErroSeguranca('Aguarde antes de tentar novamente.')
             if len(args)!=3 or kwargs:
@@ -116,6 +124,20 @@ class Nucleo:
         sessao = self.sessoes.get(p['sessao']) if isinstance(p['sessao'],str) else None
         if not sessao or sessao['identidade']!=identidade or time.monotonic()-sessao['uso']>=config.MINUTOS_BLOQUEIO_INATIVIDADE*60:
             raise ErroSeguranca('Sessão bloqueada. Desbloqueie o software novamente.')
+        if comando.startswith('dados.'):
+            sessao['uso'] = time.monotonic()
+            metodo = comando.split('.', 1)[1]
+            if metodo == 'iniciar':
+                return self.gestao.iniciar(p['sessao'], *args, **kwargs)
+            if kwargs:
+                raise ValueError('Parâmetros inesperados.')
+            resultado = self.gestao.comando(p['sessao'], metodo, *args)
+            job = self.gestao.job
+            if job and job['concluido'] and job['tipo'] != 'exportar':
+                self.sessoes = {p['sessao']: sessao}
+            return resultado
+        if self.gestao.ocupado and comando != 'atividade':
+            raise ValueError('Gestão de dados em andamento. Aguarde a conclusão.')
         if comando in ('atividade','senha','tema') or comando.startswith('estoque.') and comando.split('.',1)[1] in ESCRITAS:
             sessao['uso'] = time.monotonic()
         if comando=='logout':

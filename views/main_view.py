@@ -194,6 +194,8 @@ class JanelaPrincipal(ctk.CTk):
     # ------------------------------------------------------------------ #
     def mostrar_view(self, chave: str, **dados) -> None:
         """Exibe a tela ``chave``; ``dados`` são repassados a ``ao_mostrar``."""
+        if self.__dict__.get('_gestao_em_andamento', False):
+            return
         if not self._desbloqueado:
             return
         if chave not in self.views:
@@ -232,6 +234,9 @@ class JanelaPrincipal(ctk.CTk):
 
     # ------------------------------------------------------------------ #
     def _registrar_atividade(self, _evento=None):
+        if self.__dict__.get('_gestao_em_andamento', False):
+            self._ultimo_uso = time.monotonic()
+            return
         agora = time.monotonic()
         if self._desbloqueado and agora - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
             self.bloquear()
@@ -246,11 +251,21 @@ class JanelaPrincipal(ctk.CTk):
 
     def _conferir_inatividade(self):
         self._inatividade = None
+        if self.__dict__.get('_gestao_em_andamento', False):
+            dialogo = self.__dict__.get('_dialogo_gestao')
+            if dialogo and dialogo.executando:
+                self._ultimo_uso = time.monotonic()
+            elif time.monotonic() - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
+                if dialogo:
+                    dialogo.fechar()
+                self.bloquear()
         if self._desbloqueado and time.monotonic() - self._ultimo_uso >= config.MINUTOS_BLOQUEIO_INATIVIDADE * 60:
             self.bloquear()
         self._inatividade = self.after(1000, self._conferir_inatividade)
 
     def bloquear(self):
+        if self.__dict__.get('_gestao_em_andamento', False):
+            return
         if not self._desbloqueado:
             return
         self._desbloqueado = False
@@ -274,6 +289,8 @@ class JanelaPrincipal(ctk.CTk):
         self._foco_acesso = self.after(150, self._focar_acesso)
 
     def _fechar(self) -> None:
+        if self.__dict__.get('_gestao_em_andamento', False):
+            return
         for tarefa in (self._foco_acesso, self._atualizacao_tema, self._inatividade):
             if tarefa is not None:
                 self.after_cancel(tarefa)

@@ -1,5 +1,14 @@
 # GiStocker 1.2.0 — proteção dos dados locais
 
+**Atualização — gestão de dados na arquitetura v2:** o painel Configurações permite
+exportar intencionalmente o banco principal para JSON **sem criptografia**, mediante
+nova confirmação da senha e aviso explícito. A restauração mantém a senha/chave da
+instalação de destino e gera antes um snapshot criptografado `.gsbackup`. CSVs de
+importação e relatórios salvos também são arquivos comuns. Essas exceções à proteção
+dos arquivos exportados estão descritas em [GESTAO_DADOS.md](GESTAO_DADOS.md).
+As seções abaixo descrevem o mecanismo legado 1.2.0; na arquitetura com agente v2,
+os dados principais ficam em `dados/cofre_v2` e os backups protegidos usam `.gsbackup`.
+
 Esta versão vincula o acesso à descriptografia do banco. A tela de senha não é
 mais o único bloqueio: pular uma verificação visual não revela o conteúdo de um
 banco protegido. Não há senha padrão, chave embutida, senha mestra ou recuperação

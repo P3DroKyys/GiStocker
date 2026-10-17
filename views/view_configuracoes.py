@@ -8,6 +8,7 @@ import config
 from models.preferencias import ErroPreferencias
 from views.acesso import CampoSenha
 from views.componentes import COR_TEXTO_ERRO, COR_TEXTO_SUAVE, COR_TEXTO_SUCESSO
+from views.gestao_dados import PainelGestao
 
 
 class ViewConfiguracoes(ctk.CTkFrame):
@@ -42,6 +43,7 @@ class ViewConfiguracoes(ctk.CTkFrame):
         ctk.CTkButton(integracoes, text='Abrir integrações', height=40,
                       state='normal' if hasattr(janela.preferencias,'chamar') else 'disabled',
                       command=lambda:janela.mostrar_view('integracoes')).pack(anchor='w',padx=22,pady=16)
+        self.gestao_dados = PainelGestao(area, janela)
         senha = self._cartao(area, "Senha de acesso", "Confirme sua senha atual para cadastrar uma nova.")
         self.senha_atual = self._campo(senha, "Senha atual")
         self.nova_senha = self._campo(senha, f"Nova senha · {config.MINIMO_CARACTERES_SENHA} a 128 caracteres")

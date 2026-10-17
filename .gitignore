@@ -10,6 +10,11 @@ dados/backups/
 auditoria/fonte_antes_banco_*/
 exportacoes/*.csv
 *.log
+*.gsdados.json
+*.importacao.txt
+gestao_pendentes.json
+gestao_pendentes.lock
+.gistocker-*.parcial
 
 # Estado local, testes e ferramentas da auditoria
 dados/
