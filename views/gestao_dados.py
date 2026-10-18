@@ -109,9 +109,14 @@ class AcoesGestao:
             informar('Planilha modelo', 'Modelo salvo. Preencha a aba Produtos; a aba Instruções explica cada coluna.')
 
     def abrir(self, tipo):
-        """Devolve True quando o DialogoGestao foi aberto."""
+        caminho = self.escolher(tipo)
+        if caminho:
+            iniciar_gestao(self.janela, tipo, caminho)
+
+    def escolher(self, tipo):
+        """Arquivo da operação, ou '' se cancelada/recusada; não abre o DialogoGestao."""
         if self.janela.__dict__.get('_gestao_em_andamento', False):
-            return False
+            return ''
         if tipo == 'exportar':
             caminho = self._selecionar(filedialog.asksaveasfilename, title=TITULOS[tipo],
                 initialfile=f'GiStocker_{datetime.now():%Y%m%d_%H%M%S}.gsdados.json',
@@ -119,16 +124,13 @@ class AcoesGestao:
         else:
             caminho = self._selecionar(filedialog.askopenfilename, title=TITULOS[tipo],
                 filetypes=[('Backup GiStocker JSON', '*.json')] if tipo == 'restaurar' else [('Planilha Excel ou CSV UTF-8', '*.xlsx *.csv')])
-        if not caminho:
-            return False
-        try:
-            if tipo == 'exportar':
+        if caminho and tipo == 'exportar':
+            try:
                 caminho = str(destino_seguro(caminho, '.gsdados.json'))
-            DialogoGestao(self.janela, tipo, caminho)
-        except (OSError, ValueError) as exc:
-            erro('Gestão de dados', str(exc))
-            return False
-        return True
+            except (OSError, ValueError) as exc:
+                erro('Gestão de dados', str(exc))
+                return ''
+        return caminho
 
     def _selecionar(self, seletor, **opcoes):
         if self.janela.__dict__.get('_gestao_em_andamento', False):
@@ -143,6 +145,13 @@ class AcoesGestao:
             return ''
         self.janela._ultimo_uso = time.monotonic()
         return caminho
+
+
+def iniciar_gestao(janela, tipo, caminho):
+    try:
+        DialogoGestao(janela, tipo, caminho)
+    except (OSError, ValueError) as exc:
+        erro('Gestão de dados', str(exc))
 
 
 class PainelGestao(AcoesGestao, ctk.CTkFrame):
@@ -168,8 +177,20 @@ class PainelGestao(AcoesGestao, ctk.CTkFrame):
 class DialogoCadastroMassa(AcoesGestao, DialogoGiStocker):
     """Atalho do Cadastro: modelo + anexo, entregando o arquivo ao DialogoGestao."""
 
+    @classmethod
+    def executar(cls, janela):
+        """Importa o arquivo anexado só depois que o modal fecha.
+
+        Um CTkToplevel criado com este modal ainda aberto guardaria o foco nele e,
+        ao restaurá-lo depois da destruição, provocaria TclError (aviso de falha).
+        """
+        dialogo = cls(janela)
+        if dialogo.mostrar():
+            iniciar_gestao(janela, 'importar', dialogo.caminho)
+
     def __init__(self, janela):
         self.janela = janela
+        self.caminho = ''
         super().__init__(janela, 'Cadastrar em massa',
                          'Cadastre ou atualize vários produtos de uma vez pela planilha, com a mesma '
                          'importação de Configurações › Planilha de produtos.', 'confirmacao',
@@ -194,9 +215,11 @@ class DialogoCadastroMassa(AcoesGestao, DialogoGiStocker):
         self.botao_modelo.grid(row=5, column=0, columnspan=2, sticky='w', padx=24, pady=(0, 14))
 
     def _fechar(self, resultado):
-        # "Anexar" segue a mesma rota de Configurações; o modal sai quando o import abre.
-        if resultado and not self.abrir('importar'):
-            return 'break'
+        # "Anexar" escolhe o arquivo pela mesma rota de Configurações; sem arquivo, o modal fica.
+        if resultado:
+            self.caminho = self.escolher('importar')
+            if not self.caminho:
+                return 'break'
         return super()._fechar(resultado)
 
 

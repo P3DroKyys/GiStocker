@@ -50,15 +50,14 @@ class ModalCadastroMassa(unittest.TestCase):
         # Um único conjunto de ações: nenhuma cópia do fluxo de planilha.
         for classe in (PainelGestao, DialogoCadastroMassa):
             self.assertTrue(issubclass(classe, AcoesGestao))
-            for metodo in ('baixar_modelo', 'abrir', '_selecionar'):
+            for metodo in ('baixar_modelo', 'abrir', 'escolher', '_selecionar'):
                 self.assertIs(getattr(classe, metodo), getattr(AcoesGestao, metodo))
 
     def test_botao_do_cadastro_abre_o_modal(self):
         tela = Mock()
         with patch('views.view_cadastro.DialogoCadastroMassa') as classe:
             ViewCadastro._cadastrar_em_massa(tela)
-        classe.assert_called_once_with(tela.janela)
-        classe.return_value.mostrar.assert_called_once()
+        classe.executar.assert_called_once_with(tela.janela)
 
     def test_download_grava_o_modelo_xlsx(self):
         dialogo = self.dialogo()
@@ -73,16 +72,49 @@ class ModalCadastroMassa(unittest.TestCase):
         self.assertEqual([c.value.rstrip(' *') for c in livro['Produtos'][1]], list(planilha.TITULOS))
         self.assertTrue(dialogo.winfo_exists())   # baixar o modelo não fecha o modal
 
-    def test_anexar_entrega_o_arquivo_ao_dialogo_de_importacao(self):
+    def test_anexar_escolhe_o_arquivo_e_fecha_sem_abrir_a_importacao(self):
         dialogo = self.dialogo()
         arquivo = self.pasta / 'produtos.xlsx'
         with patch('views.gestao_dados.filedialog.askopenfilename', return_value=str(arquivo)) as abrir, \
                 patch('views.gestao_dados.DialogoGestao') as importacao:
             dialogo.aceitar.invoke()
         self.assertIn('*.xlsx', abrir.call_args.kwargs['filetypes'][0][1])
-        importacao.assert_called_once_with(dialogo.janela, 'importar', str(arquivo))
+        importacao.assert_not_called()   # só depois que o modal fecha (executar)
+        self.assertEqual(dialogo.caminho, str(arquivo))
         self.assertTrue(dialogo.resultado)
         self.assertFalse(dialogo.winfo_exists())
+
+    def test_executar_abre_a_importacao_limpa_depois_do_modal(self):
+        # Regressão: com o modal ainda vivo, o CTkToplevel da importação guardava o foco
+        # nele e o restaurava após a destruição, gerando TclError e o aviso de falha.
+        raiz = raiz_tk(self)
+        raiz.deiconify()
+        raiz.update()
+        raiz.focus_force()
+        falhas = []
+        raiz.report_callback_exception = lambda tipo, valor, tb: falhas.append(
+            ''.join(traceback.format_exception(tipo, valor, tb)))
+        arquivo = self.pasta / 'produtos.xlsx'
+
+        def anexar():
+            modal = next(w for w in raiz.winfo_children() if isinstance(w, DialogoCadastroMassa))
+            self.assertEqual(str(raiz.focus_get()), str(modal))   # o modal detém o foco ao anexar
+            modal.aceitar.invoke()
+
+        with patch('views.gestao_dados.filedialog.askopenfilename', return_value=str(arquivo)):
+            raiz.after(400, anexar)
+            DialogoCadastroMassa.executar(raiz)
+        importacao = raiz._dialogo_gestao
+        self.addCleanup(importacao.fechar)
+        limite = time.monotonic() + 1
+        while time.monotonic() < limite:
+            raiz.update()
+            time.sleep(.01)
+        self.assertEqual(falhas, [])
+        self.assertEqual((importacao.tipo, importacao.caminho), ('importar', str(arquivo)))
+        self.assertEqual(importacao.resumo.cget('text'), '')
+        self.assertFalse(importacao.executando)
+        self.assertFalse(any(isinstance(w, DialogoCadastroMassa) for w in raiz.winfo_children()))
 
     def test_anexo_cancelado_mantem_o_modal(self):
         dialogo = self.dialogo()
@@ -133,11 +165,19 @@ class FluxoCompleto(unittest.TestCase):
         try:
             self.entrar(janela, primeira_vez=True)
             janela.mostrar_view('cadastro')
-            dialogo = DialogoCadastroMassa(janela)
             modelo = Path(self.tmp.name) / 'modelo_produtos.xlsx'
-            with patch('views.gestao_dados.filedialog.asksaveasfilename', return_value=str(modelo)), \
-                    patch('views.gestao_dados.informar'):
-                dialogo.botao_modelo.invoke()
+
+            def modal():
+                return next(w for w in janela.winfo_children() if isinstance(w, DialogoCadastroMassa))
+
+            def baixar_e_fechar():
+                with patch('views.gestao_dados.filedialog.asksaveasfilename', return_value=str(modelo)), \
+                        patch('views.gestao_dados.informar'):
+                    modal().botao_modelo.invoke()
+                modal().cancelar.invoke()
+
+            janela.after(300, baixar_e_fechar)
+            janela.views['cadastro']._cadastrar_em_massa()
             # O usuário preenche o modelo baixado: um produto válido, um com quantidade vazia e um inválido.
             livro = load_workbook(modelo)
             for valores in (linha(1, qtd='4', preco='59,90'), linha(2, qtd=''),
@@ -145,8 +185,8 @@ class FluxoCompleto(unittest.TestCase):
                 livro[planilha.ABA_PRODUTOS].append(valores)
             livro.save(modelo)
             with patch('views.gestao_dados.filedialog.askopenfilename', return_value=str(modelo)):
-                dialogo.aceitar.invoke()
-            self.assertFalse(dialogo.winfo_exists())
+                janela.after(300, lambda: modal().aceitar.invoke())
+                janela.views['cadastro']._cadastrar_em_massa()
             importacao = janela._dialogo_gestao
             self.assertEqual((importacao.tipo, importacao.caminho), ('importar', str(modelo)))
             importacao.senha.entrada.insert(0, SENHA)

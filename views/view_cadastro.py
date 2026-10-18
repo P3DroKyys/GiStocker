@@ -197,7 +197,7 @@ class ViewCadastro(ctk.CTkFrame):
     # Cadastro em massa (planilha)
     # ------------------------------------------------------------------ #
     def _cadastrar_em_massa(self) -> None:
-        DialogoCadastroMassa(self.janela).mostrar()
+        DialogoCadastroMassa.executar(self.janela)
 
     # ------------------------------------------------------------------ #
     # Salvar / limpar
