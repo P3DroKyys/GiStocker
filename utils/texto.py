@@ -65,10 +65,10 @@ def sugerir_marca(nome: str) -> str | None:
 # --------------------------------------------------------------------------- #
 # Formatação para exibição
 # --------------------------------------------------------------------------- #
-def formatar_moeda(valor: float | None) -> str:
-    """0 -> 'R$ 0,00'; 1234.5 -> 'R$ 1.234,50'."""
+def formatar_moeda(valor: float | None, casas: int = 2) -> str:
+    """0 -> 'R$ 0,00'; 1234.5 -> 'R$ 1.234,50'; casas=4 para custos médios."""
     valor = float(valor or 0.0)
-    texto = f"{valor:,.2f}"                           # 1,234.50 (padrão en)
+    texto = f"{valor:,.{casas}f}"                     # 1,234.50 (padrão en)
     texto = texto.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {texto}"
 

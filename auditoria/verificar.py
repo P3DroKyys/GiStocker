@@ -171,7 +171,9 @@ class Auditoria(unittest.TestCase):
         campo = Mock()
         tela = SimpleNamespace(controlador=self.c, rotulo_produto=Mock(), entrada_estoque=Mock(),
                                entrada_custo=campo, lista_codigos=Mock(),
-                               botao_ajuste=Mock(), botao_vincular=Mock())
+                               botao_ajuste=Mock(), botao_vincular=Mock(), entrada_nome=Mock(),
+                               entrada_preco=Mock(), combo_marca=Mock(), combo_categoria=Mock(),
+                               _texto_decimal=ViewAdmin._texto_decimal)
         ViewAdmin._carregar_produto(tela, p.id)
         campo_custo = campo.insert.call_args.args[1]
         self.c.ajustar_produto(p.id, 11, campo_custo)

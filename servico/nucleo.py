@@ -16,8 +16,10 @@ from servico.cofre import CofreServico
 from servico.gestao import GestaoDados
 from servico.protocolo import VERSAO, codificar, serializar
 
-LEITURAS = {'resolver_codigo_barras','obter_produto','listar_produtos','buscar_produtos','pesquisar_produtos','listar_codigos','listar_logs','obter_ultima_acao','validar_codigo_barras'}
-ESCRITAS = {'cadastrar_produto','vincular_codigo_barras','desvincular_codigo_barras','registrar_entrada','registrar_saida','ajustar_produto','desfazer_ultima_acao'}
+LEITURAS = {'resolver_codigo_barras','obter_produto','listar_produtos','buscar_produtos','pesquisar_produtos','listar_codigos','listar_logs','listar_alteracoes','obter_ultima_acao','validar_codigo_barras'}
+# Escritas que exigem a senha vigente (kwarg ``senha``). Ajuste de estoque/custo só por editar_produto.
+PROTEGIDAS = {'editar_produto','excluir_produtos'}
+ESCRITAS = {'cadastrar_produto','vincular_codigo_barras','desvincular_codigo_barras','registrar_entrada','registrar_saida','desfazer_ultima_acao'} | PROTEGIDAS
 RELATORIOS = {'obter_kpis','movimentacao_ultimos_dias','ranking_marcas','ranking_categorias','curva_a','estoque_parado'}
 # comando -> (estado de destino, estados de origem permitidos). ENCERRANDO só termina em FISICO.
 TRANSICOES = {
@@ -206,6 +208,9 @@ class Nucleo:
         permitidos = LEITURAS|ESCRITAS if grupo=='estoque' else RELATORIOS if grupo=='relatorios' else set()
         if alvo is None or metodo not in permitidos:
             raise ValueError('Comando não permitido.')
+        if metodo in PROTEGIDAS:
+            # Fora do resumo idempotente e do journal: a senha não é persistida.
+            self._confirmar_senha(identidade, kwargs.pop('senha', None))
         inspect.signature(getattr(alvo,metodo)).bind(*args,**kwargs)
         if metodo in ESCRITAS:
             return self._idempotente(self.cofre.banco,p['id'],[comando,args,kwargs],lambda:self.motor.fisico(metodo,args,kwargs,p['id']))
@@ -219,6 +224,16 @@ class Nucleo:
     def _registrar_tentativa(self, identidade):
         falhas = self.tentativas.get(identidade, (0, 0))[0] + 1
         self.tentativas[identidade] = (falhas, time.monotonic() + min(300, 2 ** min(falhas, 8)))
+
+    def _confirmar_senha(self, identidade, senha):
+        """Mesmo intervalo crescente do login, contado na mesma identidade."""
+        if type(senha) is not str or not senha:
+            raise ValueError('Informe a senha atual para confirmar.')
+        self._exigir_intervalo(identidade)
+        if not self.cofre.verificar_senha(senha):
+            self._registrar_tentativa(identidade)
+            raise ValueError('Senha incorreta. Nenhum dado foi alterado.')
+        self.tentativas.pop(identidade, None)
 
     def _idempotente(self, banco, chave, parametros, funcao):
         from servico.protocolo import decodificar

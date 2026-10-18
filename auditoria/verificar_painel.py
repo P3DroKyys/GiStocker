@@ -81,6 +81,9 @@ class TestePainel(unittest.TestCase):
         p.contagem = Campo()
         p.detalhes = Campo()
         p.botao_abrir = Campo()
+        p._marcados = set()
+        p._ancora = None
+        p.botao_excluir = Mock()
 
     def cadastrar(self, nome="Colônia Lily", **dados):
         valores = dict(nome=nome, marca=config.MARCAS[0], categoria=config.CATEGORIAS[0],
@@ -126,7 +129,7 @@ class TestePainel(unittest.TestCase):
         self.controlador.registrar_entrada(produto.id, 2)
         self.painel.atualizar()
         self.assertEqual(self.painel.tabela.selection(), (str(produto.id),))
-        self.assertEqual(self.painel.tabela.linhas[str(produto.id)][4], 2)
+        self.assertEqual(self.painel.tabela.linhas[str(produto.id)][5], 2)   # após a caixa de seleção
         self.assertIn("036000291452", self.painel.detalhes.opcoes["text"])
         self.assertIn("10,1234", self.painel.detalhes.opcoes["text"])
         self.painel._abrir()

@@ -93,6 +93,7 @@ class DialogoGiStocker(ctk.CTkToplevel):
             texto = ctk.CTkLabel(corpo, text=mensagem, font=ctk.CTkFont(size=14),
                                 text_color=SECUNDARIO, justify='left', anchor='w', wraplength=410, corner_radius=0)
         texto.grid(row=2, column=0, columnspan=2, sticky='ew', padx=24, pady=(0, 24))
+        self._montar_conteudo(corpo)
 
         rodape = ctk.CTkFrame(self, fg_color='transparent')
         rodape.grid(row=1, column=0, sticky='ew', padx=24, pady=(0, 22))
@@ -125,6 +126,12 @@ class DialogoGiStocker(ctk.CTkToplevel):
         altura = int(self._reverse_window_scaling(self.winfo_reqheight()))
         self._altura_dialogo = max(250, altura)
         self.geometry(f'520x{self._altura_dialogo}')
+
+    def _montar_conteudo(self, corpo):
+        """Subclasses acrescentam campos ao cartão a partir da linha 3."""
+
+    def _foco_inicial(self):
+        return self.cancelar or self.aceitar
 
     def _botao_focado(self):
         foco = self.focus_get()
@@ -163,7 +170,7 @@ class DialogoGiStocker(ctk.CTkToplevel):
             self.wait_visibility()
             self.grab_set()
             self.lift()
-            (self.cancelar or self.aceitar).focus_set()
+            self._foco_inicial().focus_set()
             self.wait_window()
             return self.resultado
         finally:

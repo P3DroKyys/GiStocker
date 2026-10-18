@@ -167,13 +167,16 @@ def validar_esquema_legado(conexao):
                "sqlite_autoindex_Codigos_Barras_1"}
     versao = conexao.execute("PRAGMA user_version").fetchone()[0]
     from multicanal.esquema import TABELAS, INDICES, conferir_objeto
-    if versao in (2, 3):
+    if versao in (2, 3, 4):
         tabelas |= TABELAS
+    if versao == 4:
+        tabelas.add("Logs_Alteracao")
+        indices.add("idx_alteracoes_produto")
     objetos = conexao.execute("SELECT type, name, sql FROM sqlite_master").fetchall()
     if {r[1] for r in objetos if r[0] == "table"} != tabelas:
         raise ErroSeguranca("Este arquivo não contém um banco de estoque completo.")
     for tipo, nome, sql in objetos:
-        if versao in (2, 3) and (nome in TABELAS or versao == 3 and nome in INDICES or tipo == 'trigger' or nome.startswith('sqlite_autoindex_') and nome != 'sqlite_autoindex_Codigos_Barras_1'):
+        if versao in (2, 3, 4) and (nome in TABELAS or versao >= 3 and nome in INDICES or tipo == 'trigger' or nome.startswith('sqlite_autoindex_') and nome != 'sqlite_autoindex_Codigos_Barras_1'):
             if conferir_objeto(tipo, nome, sql):
                 continue
             raise ErroSeguranca("Estrutura multicanal inesperada. Abertura interrompida.")
@@ -181,7 +184,7 @@ def validar_esquema_legado(conexao):
                 or (tipo == "index" and nome in indices)):
             continue
         raise ErroSeguranca("O banco antigo possui uma estrutura inesperada. A migração foi interrompida.")
-    if versao not in (0, 1, 2, 3):
+    if versao not in (0, 1, 2, 3, 4):
         raise ErroSeguranca("Versão do banco antigo não suportada.")
 
 

@@ -140,18 +140,21 @@ class ServicoLocal(unittest.TestCase):
         from models.models import BancoDados
         from models.seguranca import validar_esquema_legado
         p = self.produto(quantidade_inicial=10)
+        conteudo, _ = consumir(backup.exportar(self.n.cofre.banco))
+        pacote = json.loads(conteudo)
+        # Banco e backup como gravados pela v2: sem índices v3 nem auditoria v4.
+        del pacote['tabelas']['Logs_Alteracao']
+        pacote['esquema'] = 2
         con = self.n.cofre.banco.conexao
         for nome in ('idx_eventos_produto', 'idx_eventos_log'):
             con.execute(f'DROP INDEX IF EXISTS {nome}')
+        con.execute('DROP TABLE Logs_Alteracao')
         con.execute('PRAGMA user_version=2')
         validar_esquema_legado(con)
-        conteudo, _ = consumir(backup.exportar(self.n.cofre.banco))
-        pacote = json.loads(conteudo)
-        pacote['esquema'] = 2
         self.n.fechar()
         self.cliente.abrir('senha-teste-2026')
         con = self.n.cofre.banco.conexao
-        self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0], 3)
+        self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0], BancoDados.VERSAO_ESQUEMA)
         validar_esquema_legado(con)
         for coluna in ('produto_id', 'log_id'):
             plano = str([tuple(r) for r in con.execute(f'EXPLAIN QUERY PLAN SELECT id FROM Eventos_Estoque WHERE {coluna}=?', (1,))])
@@ -828,12 +831,14 @@ class Mensagens(unittest.TestCase):
         from views.view_admin import ViewAdmin
         from views.view_cadastro import ViewCadastro
         tela = Mock(produto_atual=Mock(id=1, estoque_atual=1, custo_medio=1.0))
-        tela.controlador.ajustar_produto.side_effect = ValueError('Parâmetros incompatíveis com esta operação.')
-        tela.entrada_estoque.get.return_value = '2'
-        tela.entrada_custo.get.return_value = '1'
-        with patch('views.view_admin.confirmar', return_value=True), patch('views.view_admin.erro') as erro:
+        tela._campos_alterados.return_value = {'novo_estoque': '2'}
+        tela.controlador.editar_produto.side_effect = ValueError('Parâmetros incompatíveis com esta operação.')
+        with patch('views.view_admin.confirmar_com_senha', return_value=None) as modal:
             ViewAdmin._aplicar_ajuste(tela)
-        erro.assert_called_once_with('Ajuste', 'Parâmetros incompatíveis com esta operação.')
+        # O modal de senha captura a recusa e a exibe (verificar_edicao_exclusao.ModalSenha).
+        with self.assertRaisesRegex(ValueError, 'Parâmetros incompatíveis com esta operação.'):
+            modal.call_args.args[3]('senha')
+        tela._carregar_produto.assert_not_called()
         cadastro = Mock()
         cadastro.entrada_codigo.get.return_value = ''
         cadastro.controlador.cadastrar_produto.side_effect = ValueError('Gestão de dados em andamento.')

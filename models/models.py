@@ -7,6 +7,7 @@ Estrutura deste módulo:
   * RepositorioProdutos ....... CRUD e busca inteligente da tabela Produtos.
   * RepositorioCodigosBarras .. vínculo 1:N (vários códigos -> um único produto).
   * RepositorioLogs ........... histórico de movimentações e suporte ao "desfazer".
+  * RepositorioAlteracoes ..... auditoria das edições de cadastro (antes → depois).
   * RepositorioRelatorios ..... consultas agregadas usadas pelo dashboard.
 
 Nenhuma regra de negócio vive aqui: os repositórios apenas leem e gravam.
@@ -74,6 +75,24 @@ CREATE INDEX IF NOT EXISTS idx_logs_produto ON Logs_Movimentacao(produto_id);
 CREATE INDEX IF NOT EXISTS idx_logs_data    ON Logs_Movimentacao(data_hora);
 """
 
+# Esquema v4. Sem FK para Produtos: o registro de uma exclusão sobrevive ao produto,
+# por isso o nome é guardado como instantâneo. ``operacao`` agrupa os campos de uma edição.
+SQL_LOGS_ALTERACAO = """
+CREATE TABLE IF NOT EXISTS Logs_Alteracao (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_hora      TEXT    NOT NULL,
+    operacao       TEXT    NOT NULL,
+    produto_id     INTEGER NOT NULL,
+    produto_nome   TEXT    NOT NULL,
+    acao           TEXT    NOT NULL CHECK (acao IN ('Edição', 'Exclusão', 'Código')),
+    campo          TEXT    NOT NULL,
+    valor_anterior TEXT,
+    valor_novo     TEXT,
+    descricao      TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_alteracoes_produto ON Logs_Alteracao(produto_id);
+"""
+
 
 # --------------------------------------------------------------------------- #
 # Dataclasses (representam uma linha de cada tabela)
@@ -126,6 +145,20 @@ class LogMovimentacao:
         return self.estoque_anterior + self.quantidade
 
 
+@dataclass
+class LogAlteracao:
+    id: int | None
+    data_hora: str                # "AAAA-MM-DD HH:MM:SS"
+    operacao: str                 # mesmo valor para todos os campos de uma edição/exclusão
+    produto_id: int
+    produto_nome: str             # nome no momento da alteração
+    acao: str                     # "Edição", "Exclusão" ou "Código"
+    campo: str
+    valor_anterior: str | None
+    valor_novo: str | None
+    descricao: str                # ex.: "Preço alterado de R$ 50,00 para R$ 55,00"
+
+
 # --------------------------------------------------------------------------- #
 # Conexão
 # --------------------------------------------------------------------------- #
@@ -145,7 +178,7 @@ class _SomaInteira:
 class BancoDados:
     """Gerencia a conexão SQLite, a criação do esquema e as transações."""
 
-    VERSAO_ESQUEMA = 3
+    VERSAO_ESQUEMA = 4
 
     def __init__(self, caminho: str | Path = config.CAMINHO_BANCO,
                  backup_automatico: bool = True, timeout: float = 5.0,
@@ -217,6 +250,11 @@ class BancoDados:
                     if not self.conexao.execute('SELECT 1 FROM sqlite_master WHERE name=?', (nome,)).fetchone():
                         self.conexao.execute(instrucao)
                 self.conexao.execute('PRAGMA user_version = 3')
+            if versao < 4:
+                for instrucao in SQL_LOGS_ALTERACAO.split(";"):
+                    if instrucao.strip():
+                        self.conexao.execute(instrucao)
+                self.conexao.execute('PRAGMA user_version = 4')
 
     def criar_backup(self, pasta: str | Path | None = None) -> Path:
         """Cria snapshot SQLite consistente, único e verificado, sem sobrescrever."""
@@ -400,11 +438,47 @@ class RepositorioProdutos:
         )
 
     def atualizar_dados(self, produto: Produto) -> None:
-        """Atualiza nome/marca/categoria/preço (extensão futura: tela de edição)."""
+        """Atualiza nome/marca/categoria/preço (Admin e importação por planilha)."""
         self.bd.executar(
             "UPDATE Produtos SET nome = ?, marca = ?, categoria = ?, preco_venda_base = ? WHERE id = ?",
             (produto.nome, produto.marca, produto.categoria, produto.preco_venda_base, produto.id),
         )
+
+    def ids_com_vinculos_externos(self, produto_ids: list[int]) -> set[int]:
+        """Ids com anúncios, pedidos, reservas, incidentes ou kits, que impedem a exclusão."""
+        marcadores = ",".join("?" for _ in produto_ids)
+        linhas = self.bd.buscar_todos(
+            f"""SELECT produto_id FROM Vinculos_SKU WHERE produto_id IN ({marcadores})
+                UNION SELECT produto_id FROM Reservas WHERE produto_id IN ({marcadores})
+                UNION SELECT produto_id FROM Itens_Pedido_Externo WHERE produto_id IN ({marcadores})
+                UNION SELECT produto_id FROM Incidentes_Sync WHERE produto_id IN ({marcadores})
+                UNION SELECT kit FROM Componentes_Kit WHERE kit IN ({marcadores}) OR componente IN ({marcadores})""",
+            produto_ids * 6,
+        )
+        return {int(l[0]) for l in linhas}
+
+    def excluir(self, produto_ids: list[int]) -> dict[int, int]:
+        """Remove os produtos com códigos, movimentações e livro de eventos.
+
+        Devolve {produto_id: movimentações removidas}. Deve rodar dentro de
+        ``transacao()``: o trigger que torna Eventos_Estoque imutável só é
+        suspenso nesta transação (como na restauração de backup) e volta antes
+        do COMMIT; qualquer falha o restaura no ROLLBACK.
+        """
+        from multicanal.esquema import TRIGGERS
+        marcadores = ",".join("?" for _ in produto_ids)
+        removidas = {int(l[0]): int(l[1]) for l in self.bd.buscar_todos(
+            f"SELECT produto_id, count(*) FROM Logs_Movimentacao WHERE produto_id IN ({marcadores}) GROUP BY produto_id",
+            produto_ids)}
+        self.bd.executar("DROP TRIGGER eventos_sem_delete")
+        self.bd.executar(f"DELETE FROM Eventos_Estoque WHERE produto_id IN ({marcadores})", produto_ids)
+        self.bd.executar(TRIGGERS["eventos_sem_delete"])
+        # Codigos_Barras sai por ON DELETE CASCADE.
+        for tabela in ("Logs_Movimentacao", "Politicas_Alocacao", "Cobertura_Produto_Canal",
+                       "Estado_Alocacao"):
+            self.bd.executar(f"DELETE FROM {tabela} WHERE produto_id IN ({marcadores})", produto_ids)
+        self.bd.executar(f"DELETE FROM Produtos WHERE id IN ({marcadores})", produto_ids)
+        return {produto_id: removidas.get(produto_id, 0) for produto_id in produto_ids}
 
     def listar_todos(self, limite=None, offset=0) -> list[Produto]:
         sql = SQL_PRODUTO_BASE + " ORDER BY p.nome COLLATE NOCASE, p.id"
@@ -557,6 +631,41 @@ class RepositorioLogs:
             registro["cancelado"] = bool(registro["cancelado"])
             resultado.append(registro)
         return resultado
+
+
+# --------------------------------------------------------------------------- #
+# Repositório: auditoria de alterações de cadastro
+# --------------------------------------------------------------------------- #
+class RepositorioAlteracoes:
+    def __init__(self, bd: BancoDados) -> None:
+        self.bd = bd
+
+    def inserir(self, registros: list[LogAlteracao]) -> None:
+        self.bd.conexao.executemany(
+            """INSERT INTO Logs_Alteracao
+                   (data_hora, operacao, produto_id, produto_nome, acao, campo,
+                    valor_anterior, valor_novo, descricao)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [(r.data_hora, r.operacao, r.produto_id, r.produto_nome, r.acao, r.campo,
+              r.valor_anterior, r.valor_novo, r.descricao) for r in registros],
+        )
+
+    def listar(self, limite: int, produto_id: int | None = None, antes_id=None) -> list[dict]:
+        """Mais recente primeiro; inclui registros de produtos já excluídos."""
+        sql = "SELECT * FROM Logs_Alteracao"
+        parametros: list[Any] = []
+        condicoes = []
+        if antes_id is not None:
+            condicoes.append("id < ?")
+            parametros.append(antes_id)
+        if produto_id is not None:
+            condicoes.append("produto_id = ?")
+            parametros.append(produto_id)
+        if condicoes:
+            sql += " WHERE " + " AND ".join(condicoes)
+        sql += " ORDER BY id DESC LIMIT ?"
+        parametros.append(limite)
+        return [dict(l) for l in self.bd.buscar_todos(sql, parametros)]
 
 
 # --------------------------------------------------------------------------- #

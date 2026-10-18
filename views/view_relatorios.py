@@ -2,14 +2,17 @@
 Busca, histórico e exportação (View_Relatorios).
 
   * busca inteligente de produtos ("refil lily" encontra "Refil Hidratante Lily");
-  * Treeview com o histórico completo de Logs_Movimentacao (logs cancelados
-    aparecem esmaecidos); selecionar um produto filtra o histórico;
-  * exportação de estoque e logs para CSV com carimbo de data/hora (pandas).
+  * histórico em duas abas: Movimentações (Logs_Movimentacao: entradas, saídas
+    e ajustes de estoque; cancelados aparecem esmaecidos) e Alterações
+    (Logs_Alteracao: edições de cadastro antes → depois, exclusões e códigos);
+    selecionar um produto filtra as duas abas;
+  * exportação de cópia protegida do banco.
 """
 from __future__ import annotations
 
 import os
 import sys
+from typing import Callable
 
 import customtkinter as ctk
 
@@ -43,7 +46,49 @@ COLUNAS_LOGS = [
     ("origem", "Origem", 110, "w", False),
     ("referencia", "Referência", 120, "w", False),
 ]
+COLUNAS_ALTERACOES = [
+    ("id", "#", 50, "center", False),
+    ("data", "Data/Hora", 125, "w", False),
+    ("acao", "Ação", 80, "center", False),
+    ("produto_id", "ID", 55, "center", False),
+    ("produto", "Produto", 230, "w", True),
+    ("campo", "Campo", 120, "w", False),
+    ("descricao", "Detalhe (antes → depois)", 420, "w", True),
+]
+ABA_MOVIMENTACOES = "Movimentações de estoque"
+ABA_ALTERACOES = "Alterações de cadastro"
 ATRASO_BUSCA_MS = 250
+TAMANHO_PAGINA = 200
+
+
+class HistoricoPaginado:
+    """Tabela do histórico (id decrescente) com "Carregar mais" por cursor."""
+
+    def __init__(self, master, colunas, descricao: str,
+                 consultar: Callable[[int | None], list[dict]],
+                 linha: Callable[[dict], tuple[tuple, tuple]]):
+        self.consultar, self.linha = consultar, linha
+        self._ultimo_id = None
+        master.grid_columnconfigure(0, weight=1)
+        master.grid_rowconfigure(0, weight=1)
+        quadro, self.tabela = criar_tabela(master, colunas, altura=12, rolagem_horizontal=True)
+        quadro.grid(row=0, column=0, sticky="nsew")
+        rodape = ctk.CTkFrame(master, fg_color="transparent")
+        rodape.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        ctk.CTkLabel(rodape, text=descricao, anchor="w", text_color=COR_TEXTO_SUAVE).pack(side="left")
+        self.botao_mais = ctk.CTkButton(rodape, text="Carregar mais", width=120, height=30,
+                                        command=lambda: self.carregar(mais=True))
+        self.botao_mais.pack(side="right")
+
+    def carregar(self, mais=False) -> None:
+        registros = self.consultar(self._ultimo_id if mais else None)
+        if not mais:
+            limpar_tabela(self.tabela)
+        self._ultimo_id = registros[-1]["id"] if registros else None
+        self.botao_mais.configure(state="normal" if len(registros) == TAMANHO_PAGINA else "disabled")
+        for registro in registros:
+            valores, etiquetas = self.linha(registro)
+            self.tabela.insert("", "end", tags=etiquetas, values=valores)
 
 
 class ViewRelatorios(ctk.CTkFrame):
@@ -54,7 +99,6 @@ class ViewRelatorios(ctk.CTkFrame):
         self.relatorios = janela.controlador_relatorios
         self._busca_agendada = None
         self.produto_filtro: int | None = None
-        self._ultimo_log = None
         self._construir()
 
     # ------------------------------------------------------------------ #
@@ -85,22 +129,32 @@ class ViewRelatorios(ctk.CTkFrame):
         quadro_produtos.grid(row=2, column=0, sticky="nsew")
         self.tabela_produtos.bind("<<TreeviewSelect>>", self._ao_selecionar_produto)
 
-        # Histórico
+        # Histórico: movimentações de estoque e alterações de cadastro ficam separadas.
         linha_logs = ctk.CTkFrame(self, fg_color="transparent")
-        linha_logs.grid(row=3, column=0, sticky="ew", pady=(14, 6))
-        ctk.CTkLabel(linha_logs, text="Histórico de movimentações",
+        linha_logs.grid(row=3, column=0, sticky="ew", pady=(14, 0))
+        ctk.CTkLabel(linha_logs, text="Histórico",
                      font=ctk.CTkFont(size=16, weight="bold")).pack(side="left")
         self.rotulo_filtro = ctk.CTkLabel(linha_logs, text="", text_color=COR_TEXTO_SUAVE)
         self.rotulo_filtro.pack(side="left", padx=12)
         ctk.CTkButton(linha_logs, text="Mostrar todos", width=120, height=30,
                       fg_color="transparent", border_width=1, text_color=("gray10", "#DCE4EE"),
                       command=self._limpar_filtro).pack(side="right")
-        self.botao_mais_logs = ctk.CTkButton(linha_logs, text='Carregar mais', width=120, height=30,
-                                             command=lambda: self._carregar_logs(mais=True))
-        self.botao_mais_logs.pack(side='right', padx=8)
 
-        quadro_logs, self.tabela_logs = criar_tabela(self, COLUNAS_LOGS, altura=12, rolagem_horizontal=True)
-        quadro_logs.grid(row=4, column=0, sticky="nsew")
+        abas = ctk.CTkTabview(self)
+        abas.grid(row=4, column=0, sticky="nsew")
+        self.movimentacoes = HistoricoPaginado(
+            abas.add(ABA_MOVIMENTACOES), COLUNAS_LOGS,
+            "Entradas, saídas e ajustes de estoque. Ajustes podem ser desfeitos na tela Operação.",
+            lambda antes_id: self.controlador.listar_logs(limite=TAMANHO_PAGINA, produto_id=self.produto_filtro,
+                                                          antes_id=antes_id),
+            self._linha_movimentacao)
+        self.alteracoes = HistoricoPaginado(
+            abas.add(ABA_ALTERACOES), COLUNAS_ALTERACOES,
+            "Edições de cadastro (antes → depois), exclusões e códigos de barras feitos no Admin.",
+            lambda antes_id: self.controlador.listar_alteracoes(limite=TAMANHO_PAGINA,
+                                                                produto_id=self.produto_filtro,
+                                                                antes_id=antes_id),
+            self._linha_alteracao)
         self.ao_mudar_tema()
 
     # ------------------------------------------------------------------ #
@@ -108,11 +162,11 @@ class ViewRelatorios(ctk.CTkFrame):
     # ------------------------------------------------------------------ #
     def ao_mostrar(self, **_dados) -> None:
         self._buscar()
-        self._carregar_logs()
+        self._carregar_historicos()
         self.entrada_busca.focus_set()
 
     def ao_mudar_tema(self) -> None:
-        self.tabela_logs.tag_configure("cancelado", foreground=paleta_atual()["texto_suave"])
+        self.movimentacoes.tabela.tag_configure("cancelado", foreground=paleta_atual()["texto_suave"])
 
     # ------------------------------------------------------------------ #
     # Busca de produtos
@@ -144,35 +198,39 @@ class ViewRelatorios(ctk.CTkFrame):
         self.produto_filtro = int(selecao[0])
         nome = self.tabela_produtos.item(selecao[0], "values")[1]
         self.rotulo_filtro.configure(text=f"filtrando: {nome}")
-        self._carregar_logs()
+        self._carregar_historicos()
 
     def _limpar_filtro(self) -> None:
         self.produto_filtro = None
         self.rotulo_filtro.configure(text="")
         self.tabela_produtos.selection_remove(self.tabela_produtos.selection())
-        self._carregar_logs()
+        self._carregar_historicos()
 
     # ------------------------------------------------------------------ #
     # Histórico
     # ------------------------------------------------------------------ #
-    def _carregar_logs(self, mais=False) -> None:
-        logs = self.controlador.listar_logs(limite=200, produto_id=self.produto_filtro,
-                                            antes_id=self._ultimo_log if mais else None)
-        if not mais:
-            limpar_tabela(self.tabela_logs)
-        self._ultimo_log = logs[-1]['id'] if logs else None
-        self.botao_mais_logs.configure(state='normal' if len(logs) == 200 else 'disabled')
-        for log in logs:
-            etiquetas = ("cancelado",) if log["cancelado"] else ()
-            self.tabela_logs.insert("", "end", tags=etiquetas, values=(
-                log["id"], formatar_data_hora(log["data_hora"]), log["tipo"],
-                log["produto_nome"], log["produto_marca"], log["quantidade"],
-                formatar_moeda(log["custo_no_momento"]), log["estoque_anterior"],
-                log["estoque_posterior"], "Cancelado" if log["cancelado"] else "Válido",
-                log["observacao"] or "",
-                {'FISICO':'Físico','SHOPEE':'Shopee','TIKTOK':'TikTok Shop'}.get(log.get('origem','FISICO'),'Físico'),
-                ('•••'+str(log.get('referencia'))[-6:]) if log.get('referencia') else '',
-            ))
+    def _carregar_historicos(self) -> None:
+        self.movimentacoes.carregar()
+        self.alteracoes.carregar()
+
+    @staticmethod
+    def _linha_movimentacao(log: dict) -> tuple[tuple, tuple]:
+        return (
+            log["id"], formatar_data_hora(log["data_hora"]), log["tipo"],
+            log["produto_nome"], log["produto_marca"], log["quantidade"],
+            formatar_moeda(log["custo_no_momento"]), log["estoque_anterior"],
+            log["estoque_posterior"], "Cancelado" if log["cancelado"] else "Válido",
+            log["observacao"] or "",
+            {'FISICO':'Físico','SHOPEE':'Shopee','TIKTOK':'TikTok Shop'}.get(log.get('origem','FISICO'),'Físico'),
+            ('•••'+str(log.get('referencia'))[-6:]) if log.get('referencia') else '',
+        ), ("cancelado",) if log["cancelado"] else ()
+
+    @staticmethod
+    def _linha_alteracao(registro: dict) -> tuple[tuple, tuple]:
+        return (
+            registro["id"], formatar_data_hora(registro["data_hora"]), registro["acao"],
+            registro["produto_id"], registro["produto_nome"], registro["campo"], registro["descricao"],
+        ), ()
 
     # ------------------------------------------------------------------ #
     # Exportação

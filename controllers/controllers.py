@@ -2,8 +2,9 @@
 Camada de Controle (C do MVC): regras de negócio do estoque.
 
   * ControladorEstoque ..... resolução de código de barras (1:N), entradas,
-                             saídas, custo médio ponderado, cadastro, ajustes
-                             administrativos e o "desfazer última ação".
+                             saídas, custo médio ponderado, cadastro, edição e
+                             exclusão administrativas (com auditoria em
+                             Logs_Alteracao) e o "desfazer última ação".
   * ControladorRelatorios .. KPIs, séries dos gráficos, rankings e exportação CSV.
 
 As telas (views) só falam com estes controladores; nunca com o SQLite direto.
@@ -11,7 +12,7 @@ Toda violação de regra levanta ``ErroNegocio`` com mensagem pronta para exibir
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from functools import wraps
@@ -21,20 +22,23 @@ import math
 import os
 import shutil
 import tempfile
+from uuid import uuid4
 
 import pandas as pd
 
 import config
 from models.models import (
     BancoDados,
+    LogAlteracao,
     LogMovimentacao,
     Produto,
+    RepositorioAlteracoes,
     RepositorioCodigosBarras,
     RepositorioLogs,
     RepositorioProdutos,
     RepositorioRelatorios,
 )
-from utils.texto import converter_para_float, converter_para_int
+from utils.texto import converter_para_float, converter_para_int, formatar_moeda
 from utils.gtin import validar_gtin
 
 
@@ -89,6 +93,13 @@ class ResultadoDesfazer:
     produto: Produto            # estado do produto após a restauração
 
 
+@dataclass
+class ResultadoEdicao:
+    produto: Produto            # estado do produto APÓS a edição
+    alteracoes: list[str] = field(default_factory=list)   # descrições antes → depois
+    log_id: int | None = None   # log "Ajuste" quando estoque ou custo mudaram
+
+
 # --------------------------------------------------------------------------- #
 # Validações reutilizáveis
 # --------------------------------------------------------------------------- #
@@ -135,6 +146,7 @@ class ControladorEstoque:
         self.produtos = RepositorioProdutos(bd)
         self.codigos = RepositorioCodigosBarras(bd)
         self.logs = RepositorioLogs(bd)
+        self.alteracoes = RepositorioAlteracoes(bd)
 
     # ---------------------------------------------------------------- #
     # Custo médio ponderado
@@ -203,11 +215,20 @@ class ControladorEstoque:
     def listar_codigos(self, produto_id: int) -> list[str]:
         return self.codigos.listar_por_produto(produto_id)
 
-    def listar_logs(self, limite: int = 200, produto_id: int | None = None, antes_id=None) -> list[dict]:
-        self._validar_pagina(limite)
+    @classmethod
+    def _validar_cursor(cls, limite, antes_id) -> None:
+        cls._validar_pagina(limite)
         if limite is None or antes_id is not None and (type(antes_id) is not int or antes_id < 1):
             raise ValueError('Informe um limite e um cursor válido para o histórico.')
+
+    def listar_logs(self, limite: int = 200, produto_id: int | None = None, antes_id=None) -> list[dict]:
+        self._validar_cursor(limite, antes_id)
         return self.logs.listar(limite=limite, produto_id=produto_id, antes_id=antes_id)
+
+    def listar_alteracoes(self, limite: int = 200, produto_id: int | None = None, antes_id=None) -> list[dict]:
+        """Auditoria de cadastro (edições, exclusões e códigos), mais recente primeiro."""
+        self._validar_cursor(limite, antes_id)
+        return self.alteracoes.listar(limite=limite, produto_id=produto_id, antes_id=antes_id)
 
     # ---------------------------------------------------------------- #
     # Cadastro e códigos de barras
@@ -288,9 +309,11 @@ class ControladorEstoque:
     def vincular_codigo_barras(self, codigo: str, produto_id: int) -> None:
         """Adiciona mais um código ao produto (ex.: embalagem promocional)."""
         codigo = self.validar_codigo_barras(codigo)
-        self.obter_produto(produto_id)
+        produto = self.obter_produto(produto_id)
         self._garantir_codigo_livre(codigo)
         self.codigos.vincular(codigo, produto_id)
+        self._auditar("Código", [(produto, "Código de barras", None, codigo,
+                                  f"Código de barras {codigo} vinculado")])
 
     @_operacao_atomica
     def desvincular_codigo_barras(self, codigo: str, produto_id_esperado: int | None = None) -> None:
@@ -300,6 +323,8 @@ class ControladorEstoque:
         if produto_id_esperado is not None and dono != produto_id_esperado:
             raise ErroNegocio("O código foi vinculado a outro produto. Selecione novamente o produto antes de remover.")
         self.codigos.desvincular(codigo)
+        self._auditar("Código", [(self.obter_produto(dono), "Código de barras", codigo, None,
+                                  f"Código de barras {codigo} desvinculado")])
 
     # ---------------------------------------------------------------- #
     # Movimentações
@@ -360,19 +385,16 @@ class ControladorEstoque:
         return ResultadoMovimentacao(log_id, config.TIPO_SAIDA, produto, quantidade,
                                      estoque_anterior, custo_anterior)
 
-    @_operacao_atomica
-    def ajustar_produto(self, produto_id: int, novo_estoque=None, novo_custo=None,
-                        motivo: str = "", *, estoque_esperado: int | None = None,
-                        custo_esperado: float | None = None) -> ResultadoMovimentacao:
-        """Sobrescrita manual (área Admin). Sempre gera um log do tipo "Ajuste"
-        cujo ``quantidade`` é o delta de estoque e ``custo_no_momento`` o novo custo."""
+    def _obter_para_ajuste(self, produto_id: int, estoque_esperado, custo_esperado) -> Produto:
         produto = self.obter_produto(produto_id)
         if ((estoque_esperado is not None and produto.estoque_atual != estoque_esperado)
                 or (custo_esperado is not None and produto.custo_medio != custo_esperado)):
             raise ErroNegocio("O produto foi movimentado após a seleção. Selecione-o novamente antes de ajustar.")
-        if novo_estoque in (None, "") and novo_custo in (None, ""):
-            raise ErroNegocio("Informe ao menos um valor para ajustar.")
+        return produto
 
+    @staticmethod
+    def _valores_ajuste(produto: Produto, novo_estoque, novo_custo) -> tuple[int, float]:
+        """Estoque e custo finais; campo vazio/None mantém o valor atual."""
         estoque_final = produto.estoque_atual
         if novo_estoque not in (None, ""):
             try:
@@ -385,6 +407,19 @@ class ControladorEstoque:
         if novo_custo not in (None, ""):
             custo_final = round(_validar_valor_monetario(novo_custo, "Novo custo médio"),
                                 config.CASAS_DECIMAIS_CUSTO)
+        return estoque_final, custo_final
+
+    @_operacao_atomica
+    def ajustar_produto(self, produto_id: int, novo_estoque=None, novo_custo=None,
+                        motivo: str = "", *, estoque_esperado: int | None = None,
+                        custo_esperado: float | None = None) -> ResultadoMovimentacao:
+        """Sobrescrita manual (área Admin). Sempre gera um log do tipo "Ajuste"
+        cujo ``quantidade`` é o delta de estoque e ``custo_no_momento`` o novo custo."""
+        produto = self._obter_para_ajuste(produto_id, estoque_esperado, custo_esperado)
+        if novo_estoque in (None, "") and novo_custo in (None, ""):
+            raise ErroNegocio("Informe ao menos um valor para ajustar.")
+
+        estoque_final, custo_final = self._valores_ajuste(produto, novo_estoque, novo_custo)
 
         if estoque_final == produto.estoque_atual and abs(custo_final - produto.custo_medio) < 1e-9:
             raise ErroNegocio("Nenhuma alteração detectada: os valores são iguais aos atuais.")
@@ -403,6 +438,110 @@ class ControladorEstoque:
         produto.estoque_atual, produto.custo_medio = estoque_final, custo_final
         return ResultadoMovimentacao(log_id, config.TIPO_AJUSTE, produto,
                                      estoque_final - estoque_anterior, estoque_anterior, custo_anterior)
+
+    @_operacao_atomica
+    def editar_produto(self, produto_id: int, nome=None, marca=None, categoria=None,
+                       preco_venda_base=None, novo_estoque=None, novo_custo=None, *,
+                       estoque_esperado: int | None = None,
+                       custo_esperado: float | None = None) -> ResultadoEdicao:
+        """Edição completa da área Admin (o serviço exige a senha antes).
+
+        ``None`` mantém o campo; estoque, custo e preço vazios também. Estoque e
+        custo passam por ``ajustar_produto`` (log "Ajuste", desfazível); cada
+        campo alterado gera uma linha em Logs_Alteracao com o valor antes → depois.
+        """
+        produto = self._obter_para_ajuste(produto_id, estoque_esperado, custo_esperado)
+        dados = replace(produto)
+        if nome is not None:
+            dados.nome = str(nome).strip()
+            if not dados.nome:
+                raise ErroNegocio("Informe o nome do produto.")
+        if marca is not None:
+            if marca not in config.MARCAS:
+                raise ErroNegocio("Selecione uma marca válida.")
+            dados.marca = marca
+        if categoria is not None:
+            if categoria not in config.CATEGORIAS:
+                raise ErroNegocio("Selecione uma categoria válida.")
+            dados.categoria = categoria
+        if preco_venda_base not in (None, ""):
+            dados.preco_venda_base = _validar_valor_monetario(preco_venda_base, "Preço base")
+        estoque_final, custo_final = self._valores_ajuste(produto, novo_estoque, novo_custo)
+
+        # (campo, antes, depois, modelo da descrição)
+        mudancas = [(rotulo, texto(getattr(produto, campo)), texto(getattr(dados, campo)), modelo)
+                    for campo, rotulo, texto, modelo in (
+                        ("nome", "Nome", str, 'Nome alterado de "{}" para "{}"'),
+                        ("marca", "Marca", str, "Marca alterada de {} para {}"),
+                        ("categoria", "Categoria", str, "Categoria alterada de {} para {}"),
+                        ("preco_venda_base", "Preço base", formatar_moeda, "Preço alterado de {} para {}"),
+                    ) if getattr(produto, campo) != getattr(dados, campo)]
+        muda_dados = bool(mudancas)
+        muda_saldo = estoque_final != produto.estoque_atual or abs(custo_final - produto.custo_medio) >= 1e-9
+        if estoque_final != produto.estoque_atual:
+            mudancas.append(("Estoque", str(produto.estoque_atual), str(estoque_final),
+                             "Estoque alterado de {} para {} un."))
+        if abs(custo_final - produto.custo_medio) >= 1e-9:
+            casas = config.CASAS_DECIMAIS_CUSTO
+            mudancas.append(("Custo médio", formatar_moeda(produto.custo_medio, casas),
+                             formatar_moeda(custo_final, casas), "Custo médio alterado de {} para {}"))
+        if not mudancas:
+            raise ErroNegocio("Nenhuma alteração detectada: os valores são iguais aos atuais.")
+        descricoes = [modelo.format(antes, depois) for _, antes, depois, modelo in mudancas]
+
+        # A auditoria guarda o nome vigente antes da edição.
+        self._auditar("Edição", [(produto, campo, antes, depois, descricao)
+                                 for (campo, antes, depois, _), descricao in zip(mudancas, descricoes)])
+        if muda_dados:
+            self.produtos.atualizar_dados(dados)
+        log_id = None
+        if muda_saldo:
+            ajuste = self.ajustar_produto(produto.id, novo_estoque, novo_custo)
+            dados.estoque_atual, dados.custo_medio, log_id = ajuste.estoque_novo, ajuste.custo_novo, ajuste.log_id
+        return ResultadoEdicao(produto=dados, alteracoes=descricoes, log_id=log_id)
+
+    @_operacao_atomica
+    def excluir_produtos(self, produto_ids) -> dict:
+        """Exclusão definitiva em lote (o serviço exige a senha antes).
+
+        Remove também códigos e histórico de movimentações dos produtos. Cada
+        exclusão fica em Logs_Alteracao com o instantâneo do cadastro. Não é
+        revertida pelo Desfazer, que atua apenas sobre movimentações.
+        """
+        if (type(produto_ids) is not list or not produto_ids
+                or any(type(i) is not int or i < 1 for i in produto_ids)):
+            raise ErroNegocio("Selecione ao menos um produto para excluir.")
+        ids = sorted(set(produto_ids))
+        if self.bd.buscar_um("SELECT estado FROM Config_Multicanal")[0] != "FISICO":
+            raise ErroNegocio("Encerre o laboratório de integrações antes de excluir produtos.")
+        produtos = [self.obter_produto(i) for i in ids]
+        removidas: dict[int, int] = {}
+        # Lotes respeitam o limite de parâmetros do SQLite; tudo na mesma transação.
+        for inicio in range(0, len(ids), 500):
+            lote = ids[inicio:inicio + 500]
+            vinculados = self.produtos.ids_com_vinculos_externos(lote)
+            if vinculados:
+                nomes = ", ".join(p.nome for p in produtos if p.id in vinculados)
+                raise ErroNegocio(f"Produtos com anúncios, pedidos, incidentes ou kits não podem ser excluídos: {nomes}.")
+            removidas.update(self.produtos.excluir(lote))
+        self._auditar("Exclusão", [(
+            p, "Produto",
+            f"{p.marca} • {p.categoria} • estoque {p.estoque_atual} un. • custo médio "
+            f"{formatar_moeda(p.custo_medio, config.CASAS_DECIMAIS_CUSTO)} • preço "
+            f"{formatar_moeda(p.preco_venda_base)} • códigos: {', '.join(p.codigos) or 'nenhum'}",
+            None,
+            f"Produto excluído com {removidas[p.id]} movimentação(ões) e {len(p.codigos)} código(s)",
+        ) for p in produtos])
+        return {"excluidos": len(ids), "movimentacoes": sum(removidas.values())}
+
+    def _auditar(self, acao: str, itens: list[tuple[Produto, str, str | None, str | None, str]]) -> None:
+        """Grava (produto, campo, antes, depois, descrição) como uma única operação."""
+        data_hora, operacao = agora_texto(), uuid4().hex
+        self.alteracoes.inserir([
+            LogAlteracao(id=None, data_hora=data_hora, operacao=operacao, produto_id=produto.id,
+                         produto_nome=produto.nome, acao=acao, campo=campo,
+                         valor_anterior=antes, valor_novo=depois, descricao=descricao)
+            for produto, campo, antes, depois, descricao in itens])
 
     # ---------------------------------------------------------------- #
     # Desfazer

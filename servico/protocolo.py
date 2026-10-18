@@ -4,11 +4,11 @@ from datetime import date, datetime
 import json
 from pathlib import Path
 
-from controllers.controllers import ResultadoMovimentacao, ResultadoDesfazer
+from controllers.controllers import ResultadoDesfazer, ResultadoEdicao, ResultadoMovimentacao
 from models.models import Produto, LogMovimentacao
 from utils.busca import ResultadoPesquisa
 
-TIPOS = {c.__name__:c for c in (Produto,LogMovimentacao,ResultadoMovimentacao,ResultadoDesfazer,ResultadoPesquisa)}
+TIPOS = {c.__name__:c for c in (Produto,LogMovimentacao,ResultadoMovimentacao,ResultadoDesfazer,ResultadoEdicao,ResultadoPesquisa)}
 LIMITE = 8 * 1024 * 1024
 VERSAO = 1
 

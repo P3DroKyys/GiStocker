@@ -177,18 +177,30 @@ class CadastroEAjuste(unittest.TestCase):
 
     def test_admin_aplica_ajuste_sem_campo_motivo_e_preserva_concorrencia(self):
         p = self.cadastrar(quantidade_inicial=5)
-        tela = SimpleNamespace(produto_atual=p, controlador=self.c, entrada_estoque=Mock(),
-                               entrada_custo=Mock(), _carregar_produto=Mock(), _buscar=Mock(),
-                               winfo_exists=Mock(return_value=True))
-        tela.entrada_estoque.get.return_value = '7'
-        tela.entrada_custo.get.return_value = '0,0'
-        with patch('views.view_admin.confirmar', return_value=True), patch('views.view_admin.informar'):
+        # O serviço confere e retira a senha antes de chamar o controlador.
+        controlador = SimpleNamespace(editar_produto=lambda *a, senha, **k: self.c.editar_produto(*a, **k))
+        tela = SimpleNamespace(produto_atual=p, controlador=controlador, _carregar_produto=Mock(), _buscar=Mock(),
+                               winfo_exists=Mock(return_value=True), _texto_decimal=ViewAdmin._texto_decimal)
+        tela._campos_alterados = lambda: ViewAdmin._campos_alterados(tela)
+        for campo, valor in (('entrada_nome', p.nome), ('combo_marca', p.marca), ('combo_categoria', p.categoria),
+                             ('entrada_preco', '0,0'), ('entrada_estoque', '7'), ('entrada_custo', '0,0')):
+            setattr(tela, campo, Mock(get=Mock(return_value=valor)))
+        recusas = []
+
+        def modal(_origem, _titulo, _mensagem, acao, _botao):
+            try:
+                return acao('senha')
+            except ErroNegocio as falha:   # o modal real exibe a recusa e continua aberto
+                recusas.append(str(falha))
+
+        with patch('views.view_admin.confirmar_com_senha', side_effect=modal), patch('views.view_admin.informar'):
             ViewAdmin._aplicar_ajuste(tela)
-        self.assertEqual(self.c.obter_produto(p.id).estoque_atual, 7)
-        self.assertEqual(self.c.listar_logs()[0]['observacao'], 'Ajuste manual (Admin)')
-        with patch('views.view_admin.confirmar', return_value=True), patch('views.view_admin.erro') as aviso:
+            self.assertEqual(self.c.obter_produto(p.id).estoque_atual, 7)
+            self.assertEqual(self.c.listar_logs()[0]['observacao'], 'Ajuste manual (Admin)')
+            tela.entrada_estoque.get.return_value = '8'
             ViewAdmin._aplicar_ajuste(tela)  # produto carregado anteriormente está desatualizado
-        aviso.assert_called_once()
+        self.assertEqual(len(recusas), 1)
+        self.assertIn('movimentado', recusas[0])
         self.assertEqual(self.c.obter_produto(p.id).estoque_atual, 7)
 
 

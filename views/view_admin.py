@@ -2,21 +2,23 @@
 Área administrativa (View_Admin), disponível após o acesso ao software.
 
 Permite:
-  * consultar todos os produtos e suas características em uma tabela filtrável;
-  * sobrescrever manualmente ``estoque_atual`` e ``custo_medio`` de um produto
-    (gera obrigatoriamente um log do tipo "Ajuste");
+  * consultar todos os produtos em uma tabela filtrável e excluir em lote
+    os marcados (com senha);
+  * editar nome, marca, categoria, preço, estoque e custo médio de um produto
+    (com senha). Estoque/custo geram o log "Ajuste"; todo campo alterado fica
+    em Logs_Alteracao com o valor antes → depois;
   * vincular/desvincular códigos de barras de um produto já cadastrado.
 """
 from __future__ import annotations
 
-import sqlite3
-from models.seguranca import ERROS_OPERACIONAIS
 from utils.erros import ERROS_EXIBIVEIS, mensagem_falha
 
 import customtkinter as ctk
 
+import config
 from controllers.controllers import ErroNegocio
 from utils.texto import formatar_moeda
+from views.confirmacao_senha import confirmar_com_senha
 from views.painel_produtos import PainelProdutos
 from views.componentes import (
     COR_TEXTO_SUAVE, ListaCodigos, confirmar, criar_tabela, erro,
@@ -104,22 +106,38 @@ class ViewAdmin(ctk.CTkFrame):
         ajuste = ctk.CTkFrame(direita, corner_radius=14)
         ajuste.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         ajuste.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(ajuste, text="Ajuste manual de estoque e custo", anchor="w",
+        ctk.CTkLabel(ajuste, text="Dados, estoque e custo do produto", anchor="w",
                      font=ctk.CTkFont(size=16, weight="bold")
                      ).grid(row=0, column=0, columnspan=2, sticky="ew", padx=14, pady=(14, 2))
         self.rotulo_produto = ctk.CTkLabel(ajuste, text="Nenhum produto selecionado.", anchor="w",
                                            justify="left", wraplength=520, text_color=COR_TEXTO_SUAVE)
         self.rotulo_produto.grid(row=1, column=0, columnspan=2, sticky="ew", padx=14, pady=(0, 8))
 
-        ctk.CTkLabel(ajuste, text="Novo estoque atual", anchor="w").grid(row=2, column=0, sticky="w", padx=14, pady=4)
+        ctk.CTkLabel(ajuste, text="Nome", anchor="w").grid(row=2, column=0, sticky="w", padx=14, pady=4)
+        self.entrada_nome = ctk.CTkEntry(ajuste, height=36)
+        self.entrada_nome.grid(row=2, column=1, sticky="ew", padx=(0, 14), pady=4)
+        ctk.CTkLabel(ajuste, text="Marca", anchor="w").grid(row=3, column=0, sticky="w", padx=14, pady=4)
+        self.combo_marca = ctk.CTkComboBox(ajuste, values=config.MARCAS, state="readonly", width=260, height=36)
+        self.combo_marca.grid(row=3, column=1, sticky="w", pady=4)
+        ctk.CTkLabel(ajuste, text="Categoria", anchor="w").grid(row=4, column=0, sticky="w", padx=14, pady=4)
+        self.combo_categoria = ctk.CTkComboBox(ajuste, values=config.CATEGORIAS, state="readonly", width=260, height=36)
+        self.combo_categoria.grid(row=4, column=1, sticky="w", pady=4)
+        ctk.CTkLabel(ajuste, text="Preço base (R$)", anchor="w").grid(row=5, column=0, sticky="w", padx=14, pady=4)
+        self.entrada_preco = ctk.CTkEntry(ajuste, width=160, height=36)
+        self.entrada_preco.grid(row=5, column=1, sticky="w", pady=4)
+        ctk.CTkLabel(ajuste, text="Novo estoque atual", anchor="w").grid(row=6, column=0, sticky="w", padx=14, pady=4)
         self.entrada_estoque = ctk.CTkEntry(ajuste, width=160, height=36)
-        self.entrada_estoque.grid(row=2, column=1, sticky="w", pady=4)
-        ctk.CTkLabel(ajuste, text="Novo custo médio (R$)", anchor="w").grid(row=3, column=0, sticky="w", padx=14, pady=4)
+        self.entrada_estoque.grid(row=6, column=1, sticky="w", pady=4)
+        ctk.CTkLabel(ajuste, text="Novo custo médio (R$)", anchor="w").grid(row=7, column=0, sticky="w", padx=14, pady=4)
         self.entrada_custo = ctk.CTkEntry(ajuste, width=160, height=36)
-        self.entrada_custo.grid(row=3, column=1, sticky="w", pady=4)
+        self.entrada_custo.grid(row=7, column=1, sticky="w", pady=4)
         self.botao_ajuste = ctk.CTkButton(ajuste, text="Aplicar ajuste (gera log 'Ajuste')", height=40,
                                         command=self._aplicar_ajuste, state='disabled')
-        self.botao_ajuste.grid(row=4, column=0, columnspan=2, sticky="ew", padx=14, pady=(10, 14))
+        self.botao_ajuste.grid(row=8, column=0, columnspan=2, sticky="ew", padx=14, pady=(10, 4))
+        ctk.CTkLabel(ajuste, text="Exige a senha atual. Estoque e custo geram o log 'Ajuste' (desfazível); "
+                                  "todo campo alterado fica em Relatórios › Alterações.",
+                     anchor="w", justify="left", wraplength=520, text_color=COR_TEXTO_SUAVE
+                     ).grid(row=9, column=0, columnspan=2, sticky="ew", padx=14, pady=(0, 12))
 
         codigos = ctk.CTkFrame(direita, corner_radius=14)
         codigos.grid(row=1, column=0, sticky="nsew")
@@ -243,23 +261,31 @@ class ViewAdmin(ctk.CTkFrame):
             text=f"#{produto.id}  {produto.nome}  ({produto.marca} • {produto.categoria})\n"
                  f"Estoque atual: {produto.estoque_atual} un.   Custo médio: {formatar_moeda(produto.custo_medio)}   "
                  f"Preço base: {formatar_moeda(produto.preco_venda_base)}")
-        self.entrada_estoque.delete(0, "end")
-        self.entrada_estoque.insert(0, str(produto.estoque_atual))
-        self.entrada_custo.delete(0, "end")
-        self.entrada_custo.insert(0, str(produto.custo_medio).replace(".", ","))
+        for entrada, valor in ((self.entrada_nome, produto.nome),
+                               (self.entrada_preco, self._texto_decimal(produto.preco_venda_base)),
+                               (self.entrada_estoque, str(produto.estoque_atual)),
+                               (self.entrada_custo, self._texto_decimal(produto.custo_medio))):
+            entrada.delete(0, "end")
+            entrada.insert(0, valor)
+        self.combo_marca.set(produto.marca)
+        self.combo_categoria.set(produto.categoria)
         self.lista_codigos.definir(produto.codigos)
 
-    def _limpar_produto(self) -> None:
-        self.var_busca.set('')
+    @staticmethod
+    def _texto_decimal(valor: float) -> str:
+        """Texto exibido no campo; comparado depois para detectar edição."""
+        return str(valor).replace(".", ",")
 
     def _limpar_selecao(self) -> None:
         self.produto_atual = None
         self.botao_ajuste.configure(state='disabled')
         self.botao_vincular.configure(state='disabled')
         self.rotulo_produto.configure(text="Nenhum produto selecionado.")
-        for entrada in (self.entrada_estoque, self.entrada_custo,
-                        self.entrada_codigo):
+        for entrada in (self.entrada_nome, self.entrada_preco, self.entrada_estoque,
+                        self.entrada_custo, self.entrada_codigo):
             entrada.delete(0, "end")
+        self.combo_marca.set("")
+        self.combo_categoria.set("")
         self.lista_codigos.limpar()
 
     def ao_ocultar(self):
@@ -274,35 +300,49 @@ class ViewAdmin(ctk.CTkFrame):
     # ------------------------------------------------------------------ #
     # Ajuste manual
     # ------------------------------------------------------------------ #
+    def _campos_alterados(self) -> dict:
+        """Somente os campos editados; os demais não sobrescrevem nem arredondam valores."""
+        p = self.produto_atual
+        campos = {}
+        if self.entrada_nome.get().strip() != p.nome:
+            campos["nome"] = self.entrada_nome.get()
+        if self.combo_marca.get() != p.marca:
+            campos["marca"] = self.combo_marca.get()
+        if self.combo_categoria.get() != p.categoria:
+            campos["categoria"] = self.combo_categoria.get()
+        if self.entrada_preco.get() != self._texto_decimal(p.preco_venda_base):
+            campos["preco_venda_base"] = self.entrada_preco.get()
+        if self.entrada_estoque.get() != str(p.estoque_atual):
+            campos["novo_estoque"] = self.entrada_estoque.get()
+        if self.entrada_custo.get() != self._texto_decimal(p.custo_medio):
+            campos["novo_custo"] = self.entrada_custo.get()
+        return campos
+
     def _aplicar_ajuste(self) -> None:
         if self.produto_atual is None:
             erro("Ajuste", "Selecione um produto primeiro.")
             return
-        if not confirmar("Confirmar ajuste",
-                         f"Sobrescrever estoque/custo de '{self.produto_atual.nome}'?\n"
-                         "Um log do tipo 'Ajuste' será gerado."):
+        campos = self._campos_alterados()
+        if not campos:
+            erro("Ajuste", "Nenhuma alteração detectada: os valores são iguais aos atuais.")
             return
-        try:
-            estoque = self.entrada_estoque.get()
-            custo = self.entrada_custo.get()
-            # Campos inalterados não devem sobrescrever valores nem arredondar custos.
-            if estoque == str(self.produto_atual.estoque_atual):
-                estoque = None
-            if custo == str(self.produto_atual.custo_medio).replace(".", ","):
-                custo = None
-            resultado = self.controlador.ajustar_produto(
-                self.produto_atual.id, estoque, custo,
-                estoque_esperado=self.produto_atual.estoque_atual,
-                custo_esperado=self.produto_atual.custo_medio)
-        except ERROS_EXIBIVEIS as falha:
-            erro("Ajuste", mensagem_falha(falha))
+        produto = self.produto_atual
+        rotulos = {"nome": "Nome", "marca": "Marca", "categoria": "Categoria", "preco_venda_base": "Preço base",
+                   "novo_estoque": "Estoque", "novo_custo": "Custo médio"}
+        resultado = confirmar_com_senha(
+            self, "Confirmar ajuste",
+            f"Aplicar as alterações em '{produto.nome}'?\n"
+            f"Campos alterados: {', '.join(rotulos[c] for c in campos)}.",
+            lambda senha: self.controlador.editar_produto(
+                produto.id, **campos, estoque_esperado=produto.estoque_atual,
+                custo_esperado=produto.custo_medio, senha=senha),
+            "Aplicar")
+        if resultado is None:
             return
-        informar("Ajuste aplicado",
-                 f"Estoque: {resultado.estoque_anterior} → {resultado.estoque_novo} un.\n"
-                 f"Custo médio: {formatar_moeda(resultado.custo_anterior)} → {formatar_moeda(resultado.custo_novo)}")
+        informar("Ajuste aplicado", "\n".join(resultado.alteracoes))
         if not self.winfo_exists():
             return
-        self._carregar_produto(self.produto_atual.id)
+        self._carregar_produto(produto.id)
         self._buscar()
 
     # ------------------------------------------------------------------ #

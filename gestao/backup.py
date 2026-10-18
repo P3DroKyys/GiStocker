@@ -6,7 +6,9 @@ from gestao.arquivos import LIMITE_ARQUIVO, json_bytes, ler_json
 from models.models import BancoDados
 from multicanal.esquema import TABELAS, TRIGGERS
 
-TABELAS_BACKUP = tuple(sorted(TABELAS | {'Produtos', 'Codigos_Barras', 'Logs_Movimentacao'})) + ('sqlite_sequence',)
+TABELAS_BACKUP = tuple(sorted(TABELAS | {'Produtos', 'Codigos_Barras', 'Logs_Movimentacao', 'Logs_Alteracao'})) + ('sqlite_sequence',)
+# Backups anteriores ao esquema 4 não têm a auditoria de alterações: restauram com ela vazia.
+TABELAS_ESQUEMA_4 = {'Logs_Alteracao'}
 
 
 def colunas(con, tabela):
@@ -85,7 +87,7 @@ def substituir(con, tabelas, etapa):
     sequencias = list(con.execute('SELECT name,seq FROM sqlite_sequence'))
     nomes = set()
     for nome, seq in sequencias:
-        if nome not in ('Produtos', 'Logs_Movimentacao', 'Eventos_Estoque', 'Outbox_Comandos', 'Incidentes_Sync') or nome in nomes or type(seq) is not int or not 0 <= seq < 2**63:
+        if nome not in ('Produtos', 'Logs_Movimentacao', 'Logs_Alteracao', 'Eventos_Estoque', 'Outbox_Comandos', 'Incidentes_Sync') or nome in nomes or type(seq) is not int or not 0 <= seq < 2**63:
             raise ValueError('Sequência de identificadores inválida.')
         nomes.add(nome)
         if seq < con.execute(f'SELECT coalesce(max(id),0) FROM "{nome}"').fetchone()[0]:
@@ -107,11 +109,14 @@ def restaurar(cofre, conteudo, recibo):
     pacote = ler_json(conteudo)
     if (type(pacote) is not dict or set(pacote) != {'formato', 'versao', 'esquema', 'criado_utc', 'tabelas'}
             or pacote['formato'] != 'GiStocker-dados' or type(pacote['versao']) is not int or pacote['versao'] != 1
-            or type(pacote['esquema']) is not int or pacote['esquema'] not in (2, 3)
-            or type(pacote['tabelas']) is not dict or set(pacote['tabelas']) != set(TABELAS_BACKUP)):
+            or type(pacote['esquema']) is not int or pacote['esquema'] not in (2, 3, 4)
+            or type(pacote['tabelas']) is not dict
+            or set(pacote['tabelas']) != set(TABELAS_BACKUP) - (TABELAS_ESQUEMA_4 if pacote['esquema'] < 4 else set())):
         raise ValueError('Formato ou versão de backup incompatível.')
     tabelas = pacote['tabelas']
     destino = cofre.banco
+    for tabela in TABELAS_ESQUEMA_4 - set(tabelas):
+        tabelas[tabela] = {'colunas': [r[1] for r in colunas(destino.conexao, tabela)], 'linhas': []}
     for tabela in TABELAS_BACKUP:
         dados = tabelas[tabela]
         if (type(dados) is not dict or set(dados) != {'colunas', 'linhas'}

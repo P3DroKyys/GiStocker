@@ -151,7 +151,7 @@ class Correcoes(unittest.TestCase):
             stack.enter_context(patch('utils.erros.registrar_falha'))
             aviso_cadastro = stack.enter_context(patch('views.view_cadastro.erro'))
             aviso_admin = stack.enter_context(patch('views.view_admin.erro'))
-            stack.enter_context(patch('views.view_admin.confirmar', return_value=True))
+            modal = stack.enter_context(patch('views.view_admin.confirmar_com_senha', return_value=None))
             cadastro = Mock()
             cadastro.entrada_codigo.get.return_value = ''
             cadastro.controlador.cadastrar_produto.side_effect = sqlite3.OperationalError('full')
@@ -159,9 +159,14 @@ class Correcoes(unittest.TestCase):
             aviso_cadastro.assert_called_once()
             cadastro._limpar.assert_not_called()
             admin = Mock(produto_atual=self.p)
-            admin.controlador.ajustar_produto.side_effect = OSError('permissão')
+            admin._campos_alterados.return_value = {'novo_estoque': '9'}
+            admin.controlador.editar_produto.side_effect = OSError('permissão')
             ViewAdmin._aplicar_ajuste(admin)
-            aviso_admin.assert_called_once()
+            # A falha chega ao modal de senha, que a exibe sem fechar
+            # (verificar_edicao_exclusao.ModalSenha); a tela não recarrega.
+            with self.assertRaises(OSError):
+                modal.call_args.args[3]('senha')
+            aviso_admin.assert_not_called()
             admin._carregar_produto.assert_not_called()
 
     def test_build_falha_preserva_distribuicao_anterior(self):

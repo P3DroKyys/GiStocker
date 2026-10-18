@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from controllers.controllers import ControladorEstoque, ErroNegocio
 from models.seguranca import ErroSeguranca, ErroSessao
-from servico.nucleo import LEITURAS, ESCRITAS, RELATORIOS
+from servico.nucleo import LEITURAS, ESCRITAS, PROTEGIDAS, RELATORIOS
 from servico.pipe import chamar, nome_pipe, ERROS_TRANSPORTE
 from servico.protocolo import VERSAO, decodificar
 from servico.pendencias import Pendencias
@@ -61,7 +61,8 @@ class Cliente:
 
     def chamar(self, comando, *args, **kwargs):
         assinatura = json.dumps([comando,args,kwargs],sort_keys=True,ensure_ascii=True)
-        mutacao = (comando.startswith('estoque.') and comando.split('.',1)[1] in ESCRITAS or
+        # Escritas protegidas levam a senha: nunca entram no journal nem são reenviadas.
+        mutacao = (comando.startswith('estoque.') and comando.split('.',1)[1] in ESCRITAS - PROTEGIDAS or
                    comando in ('integracoes.vincular','integracoes.cobertura','integracoes.politica','integracoes.receber','integracoes.pedido_operar','integracoes.catalogo_exemplo'))
         try:
             chave = self.journal.iniciar(assinatura) if mutacao else str(uuid4())
