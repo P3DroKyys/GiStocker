@@ -25,8 +25,9 @@ DESCRICOES = {
     'exportar': AVISO_EXPORTACAO,
     'restaurar': 'Todos os produtos e o histórico atuais serão substituídos pelo backup. '
                  'Sua senha atual será mantida. Antes da substituição, uma cópia criptografada será criada automaticamente.',
-    'importar': 'Os códigos GTIN identificam os produtos. Quantidades serão SOMADAS ao estoque. '
-                'Nome, marca e categoria serão atualizados. Preços vazios preservam os atuais. '
+    'importar': 'Os códigos GTIN identificam os produtos. Quantidades serão SOMADAS ao estoque; '
+                'quantidade vazia vale 0. Nome, marca e categoria serão atualizados. Preço e custo vazios '
+                'ficam em zero nos produtos novos e preservam os atuais nos existentes. '
                 'Linhas inválidas serão ignoradas e listadas ao final.',
 }
 
@@ -88,10 +89,11 @@ class PainelGestao(ctk.CTkFrame):
             ctk.CTkButton(self, text=TITULOS[tipo], height=40, command=lambda t=tipo: self.abrir(t),
                           state='normal' if hasattr(janela.preferencias, 'chamar') else 'disabled'
                           ).pack(fill='x', padx=22, pady=5)
-        rotulo(self, 'Planilha de produtos · CSV UTF-8', font=ctk.CTkFont(size=14, weight='bold'))
-        rotulo(self, 'Use o modelo com uma linha por produto. No Excel, importe a coluna codigo como Texto '
-                    'para preservar os zeros à esquerda. Salve como CSV UTF-8. Quantidade zero permite '
-                    'atualizar o cadastro sem adicionar estoque.', text_color=COR_TEXTO_SUAVE)
+        rotulo(self, 'Planilha de produtos · Excel', font=ctk.CTkFont(size=14, weight='bold'))
+        rotulo(self, 'Baixe o modelo, preencha uma linha por produto na aba Produtos e escolha marca e '
+                    'categoria nas listas. As instruções estão na própria planilha. Quantidade vazia ou zero '
+                    'atualiza o cadastro sem adicionar estoque. Também é aceito CSV UTF-8 com as mesmas colunas.',
+               text_color=COR_TEXTO_SUAVE)
         ctk.CTkButton(self, text='Baixar planilha modelo', height=40, command=self.baixar_modelo
                       ).pack(fill='x', padx=22, pady=5)
         ctk.CTkButton(self, text=TITULOS['importar'], height=40, command=lambda: self.abrir('importar'),
@@ -100,17 +102,17 @@ class PainelGestao(ctk.CTkFrame):
 
     def baixar_modelo(self):
         caminho = self._selecionar(filedialog.asksaveasfilename, title='Salvar modelo de produtos',
-                                               initialfile='modelo_produtos.csv', defaultextension='.csv',
-                                               filetypes=[('Planilha CSV UTF-8', '*.csv')])
+                                               initialfile='modelo_produtos.xlsx', defaultextension='.xlsx',
+                                               filetypes=[('Planilha Excel', '*.xlsx')])
         if not caminho:
             return
         try:
-            with SaidaAtomica(destino_seguro(caminho, '.csv')) as arquivo:
+            with SaidaAtomica(destino_seguro(caminho, '.xlsx')) as arquivo:
                 arquivo.write(modelo())
         except (OSError, ValueError) as exc:
             erro('Planilha modelo', str(exc))
         else:
-            informar('Planilha modelo', 'Modelo salvo. Preencha as colunas mantendo os códigos como texto.')
+            informar('Planilha modelo', 'Modelo salvo. Preencha a aba Produtos; a aba Instruções explica cada coluna.')
 
     def abrir(self, tipo):
         if self.janela.__dict__.get('_gestao_em_andamento', False):
@@ -121,7 +123,7 @@ class PainelGestao(ctk.CTkFrame):
                 defaultextension='.gsdados.json', filetypes=[('Backup GiStocker JSON', '*.gsdados.json')])
         else:
             caminho = self._selecionar(filedialog.askopenfilename, title=TITULOS[tipo],
-                filetypes=[('Backup GiStocker JSON', '*.json')] if tipo == 'restaurar' else [('Planilha CSV UTF-8', '*.csv')])
+                filetypes=[('Backup GiStocker JSON', '*.json')] if tipo == 'restaurar' else [('Planilha Excel ou CSV UTF-8', '*.xlsx *.csv')])
         if not caminho:
             return
         try:

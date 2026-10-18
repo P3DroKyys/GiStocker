@@ -33,31 +33,41 @@ Os snapshots `.gsbackup` continuam usando o mecanismo de restauração protegida
 de `servico.cofre.restaurar`, em diretório novo, e a senha da época da cópia. Este
 painel restaura somente os arquivos JSON que ele exporta.
 
-## Planilha para Excel
+## Planilha de produtos (Excel)
 
-**Baixar planilha modelo** gera CSV UTF-8 com BOM, separador `;`, somente com estes
-cabeçalhos, na ordem abaixo:
+**Baixar planilha modelo** gera `modelo_produtos.xlsx` com três abas:
 
-| Coluna | Regra |
+- **Produtos**: linha de títulos fixa e colorida (obrigatórias com `*` em cor forte,
+  opcionais em cor clara), uma linha por produto a partir da linha 2. Cada célula
+  mostra uma orientação ao ser selecionada. A coluna de código já está formatada
+  como Texto, o que preserva zeros à esquerda. **Marca** e **Categoria** são listas
+  suspensas com os valores cadastrados no programa. Quantidade aceita só inteiro
+  ≥ 0, e preço/custo só valores ≥ 0. Valores colados de outra planilha passam por
+  cima da validação do Excel, mas são validados de novo na importação.
+- **Instruções**: passo a passo, regras por coluna e uma linha de exemplo (esta
+  aba não é importada).
+- **Listas**: oculta; origem das listas suspensas.
+
+| Coluna (título no Excel / cabeçalho CSV) | Regra |
 | --- | --- |
-| `codigo` | GTIN textual válido de 8, 12, 13 ou 14 dígitos, incluindo DV GS1. |
-| `nome` | Obrigatório, até 500 caracteres. |
-| `marca` | Uma das marcas disponíveis no cadastro do programa (maiúsculas e acentos são indiferentes). |
-| `categoria` | Uma das categorias disponíveis no cadastro do programa (maiúsculas e acentos são indiferentes). |
-| `quantidade` | Inteiro não negativo, com ponto de milhar opcional (`1.000`). É a quantidade **a adicionar**, não o saldo final. |
-| `preco_venda_base` | Opcional. Quando preenchido, substitui o preço de venda. |
-| `custo_unitario` | Opcional. Com entrada de estoque, compõe o custo médio ponderado. Com quantidade zero, substitui o custo atual e gera um Ajuste no histórico; sem custo, nenhum registro de histórico é criado. |
+| Código de barras (GTIN) / `codigo` | Obrigatório. GTIN textual válido de 8, 12, 13 ou 14 dígitos, incluindo DV GS1. Célula numérica é recusada, porque zeros à esquerda já perdidos não podem ser recuperados. |
+| Nome do produto / `nome` | Obrigatório, até 500 caracteres. |
+| Marca / `marca` | Obrigatório. Uma das marcas do cadastro (maiúsculas e acentos são indiferentes). |
+| Categoria / `categoria` | Obrigatório. Uma das categorias do cadastro (maiúsculas e acentos são indiferentes). |
+| Quantidade a adicionar / `quantidade` | Inteiro não negativo. **Vazio vale 0.** É a quantidade **a adicionar**, não o saldo final. |
+| Preço de venda (R$) / `preco_venda_base` | Opcional. Preenchido, substitui o preço de venda. Vazio: produto novo fica com 0, existente mantém o preço atual. |
+| Custo unitário (R$) / `custo_unitario` | Opcional. Com entrada de estoque, compõe o custo médio ponderado. Com quantidade zero, substitui o custo atual e gera um Ajuste no histórico. Vazio: produto novo fica com 0, existente mantém o custo e nenhum registro de histórico é criado. |
 
-No Excel, use **Dados → De Texto/CSV** e defina `codigo` como **Texto** antes de
-carregar. Abrir diretamente como número pode apagar zeros ou converter para
-notação científica. Não use fórmulas para gerar códigos. Salve em **CSV UTF-8**;
-arquivos `.xlsx` não são lidos nesta implementação. Também são aceitos CSVs com
-separador vírgula e campos corretamente entre aspas. Valores monetários usam
-vírgula decimal e ponto de milhar: `1.500` vale 1500 e `1.234,56` vale 1234,56.
-Também são aceitos ponto decimal com 1, 2 ou 4 casas (`10.5`, `12.50`, `10.1234`)
-e o prefixo `R$`. Para três casas decimais, use vírgula (`1,234`). Notação
-científica, sublinhados, infinitos e o formato `1,234.56` são rejeitados.
-As quantidades não aceitam casas decimais; o ponto de milhar é aceito, como nas telas.
+São aceitos `.xlsx` (é lida a aba **Produtos** ou, sem ela, a primeira aba) e,
+como alternativa, **CSV UTF-8** com separador `;` ou `,`. No `.xlsx`, números
+digitados como número são lidos com o valor exato da célula. No CSV, e em células
+de texto, valores monetários usam vírgula decimal e ponto de milhar: `1.500` vale
+1500 e `1.234,56` vale 1234,56. Também são aceitos ponto decimal com 1, 2 ou 4
+casas (`10.5`, `12.50`, `10.1234`) e o prefixo `R$`. Para três casas decimais, use
+vírgula (`1,234`). Notação científica, sublinhados, infinitos e o formato
+`1,234.56` são rejeitados. As quantidades não aceitam casas decimais; o ponto de
+milhar é aceito, como nas telas. A linha de títulos pode usar os títulos do Excel
+ou os cabeçalhos do CSV. Um `.xlsx` acima de 256 MiB descompactado é recusado.
 
 O sistema encontra produtos pelo GTIN e atualiza o produto vinculado. Um GTIN novo
 cria outro produto; o importador não tenta mesclar produtos por semelhança de nome.
@@ -75,7 +85,7 @@ nomes/preços nem a importação inteira. Use backup antes de uma atualização 
 
 ## Execução e limites
 
-- Até 64 MiB por arquivo e 100.000 linhas por CSV. Arquivos maiores são rejeitados
+- Até 64 MiB por arquivo e 100.000 linhas por planilha. Arquivos maiores são rejeitados
   explicitamente, sem truncamento; o backup protegido existente continua disponível.
 - O modal segue o tema claro/escuro. A navegação e o fechamento normal ficam
   bloqueados durante o trabalho; o processamento de arquivos roda fora da thread Tk.
@@ -100,7 +110,7 @@ nomes/preços nem a importação inteira. Use backup antes de uma atualização 
 
 `gestao/arquivos.py`: formatos de arquivo e gravação atômica.
 `gestao/backup.py`: exportação e restauração, schema fechado, integração com cofre.
-`gestao/planilha.py`: parsing CSV, validações e upsert transacional.
+`gestao/planilha.py`: modelo `.xlsx` (openpyxl), leitura de `.xlsx`/CSV, validações e upsert transacional.
 `servico/gestao.py`: autenticação, jobs, exclusão mútua, recibos e rollback.
 `servico/transferencia.py`: transporte em blocos e journal, sem widgets.
 `views/gestao_dados.py`: painel e modal; `view_configuracoes.py` somente injeta o painel.

@@ -14,6 +14,8 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+from openpyxl import load_workbook
+
 import config
 from gestao import backup, planilha
 from gestao.arquivos import SaidaAtomica, json_bytes
@@ -48,6 +50,16 @@ def csv_bytes(linhas):
     return f.getvalue().encode('utf-8-sig')
 
 
+def xlsx_bytes(linhas):
+    """Preenche o próprio modelo gerado pelo sistema, como faria o usuário no Excel."""
+    livro = load_workbook(io.BytesIO(planilha.modelo()))
+    for valores in linhas:
+        livro[planilha.ABA_PRODUTOS].append(valores)
+    saida = io.BytesIO()
+    livro.save(saida)
+    return saida.getvalue()
+
+
 def linha(n=1, qtd='3', preco='20,00', custo='10,00'):
     return [gtin(n), f'Produto {n}', config.MARCAS[0], config.CATEGORIAS[0], qtd, preco, custo]
 
@@ -63,8 +75,59 @@ class Planilhas(unittest.TestCase):
     def importar(self, linhas):
         return consumir(planilha.importar(self.bd, csv_bytes(linhas), str(uuid4()), lambda _: None))[0]
 
-    def test_modelo_somente_cabecalhos(self):
-        self.assertEqual(planilha.modelo().decode('utf-8-sig').splitlines(), [';'.join(planilha.CABECALHOS)])
+    def importar_xlsx(self, linhas):
+        return consumir(planilha.importar(self.bd, xlsx_bytes(linhas), str(uuid4()), lambda _: None))[0]
+
+    def test_modelo_xlsx_titulos_formatos_e_listas_suspensas(self):
+        livro = load_workbook(io.BytesIO(planilha.modelo()))
+        self.assertEqual(livro.sheetnames, ['Produtos', 'Listas', 'Instruções'])
+        self.assertEqual(livro['Listas'].sheet_state, 'hidden')
+        produtos = livro['Produtos']
+        self.assertEqual([c.value.rstrip(' *') for c in produtos[1]], list(planilha.TITULOS))
+        self.assertEqual(produtos.max_row, 1)   # nenhuma linha de exemplo seria importada por engano
+        self.assertEqual(produtos.freeze_panes, 'A2')
+        self.assertEqual(produtos.column_dimensions['A'].number_format, '@')
+        listas = {str(dv.sqref): dv for dv in produtos.data_validations.dataValidation}
+        self.assertEqual(listas['C2:C100001'].type, 'list')
+        self.assertEqual(listas['D2:D100001'].type, 'list')
+        marcas = [c.value for c in livro['Listas']['A'][1:]]
+        categorias = [c.value for c in livro['Listas']['B'][1:] if c.value]
+        self.assertEqual((marcas, categorias), (config.MARCAS, config.CATEGORIAS))
+        self.assertEqual(listas['C2:C100001'].formula1, f'Listas!$A$2:$A${len(config.MARCAS) + 1}')
+        self.assertEqual(listas['E2:E100001'].type, 'whole')
+
+    def test_xlsx_importa_valores_nativos_e_vazios(self):
+        r = self.importar_xlsx([
+            [gtin(1), 'Novo sem valores', config.MARCAS[0], config.CATEGORIAS[0], None, None, None],
+            [gtin(2), 'Numérico', 'o boticario', 'PERFUMARIA', 4, 12.345, 10],
+            [gtin(3), 'Só obrigatórias', config.MARCAS[1], config.CATEGORIAS[1]],
+        ])
+        self.assertEqual((r['novos'], r['erros']), (3, []))
+        p1, p2, p3 = (self.motor.estoque.obter_produto(i) for i in (1, 2, 3))
+        self.assertEqual((p1.estoque_atual, p1.preco_venda_base, p1.custo_medio), (0, 0, 0))
+        self.assertEqual((p2.estoque_atual, p2.preco_venda_base, p2.custo_medio, p2.marca), (4, 12.345, 10, 'O Boticário'))
+        self.assertEqual(p3.estoque_atual, 0)
+        r = self.importar_xlsx([[gtin(2), 'Numérico', config.MARCAS[0], config.CATEGORIAS[0], None, None, None]])
+        p2 = self.motor.estoque.obter_produto(2)
+        self.assertEqual((r['atualizados'], p2.estoque_atual, p2.preco_venda_base, p2.custo_medio), (1, 4, 12.345, 10))
+
+    def test_xlsx_recusa_gtin_numerico_quantidade_fracionada_e_cabecalho_alterado(self):
+        r = self.importar_xlsx([[int(gtin(1)), 'GTIN numérico', config.MARCAS[0], config.CATEGORIAS[0], 1],
+                                [gtin(2), 'Fração', config.MARCAS[0], config.CATEGORIAS[0], 1.5],
+                                [gtin(3), 'Extra', config.MARCAS[0], config.CATEGORIAS[0], 1, None, None, 'x']])
+        self.assertEqual([(e['linha'], e['motivo'][:10]) for e in r['erros']],
+                         [(2, 'O código G'), (3, 'Quantidade'), (4, 'Quantidade')])
+        livro = load_workbook(io.BytesIO(xlsx_bytes([linha()])))
+        livro['Produtos']['B1'] = 'Descrição'
+        saida = io.BytesIO()
+        livro.save(saida)
+        for arquivo in (saida.getvalue(), planilha.modelo(), b'PK\x03\x04corrompido'):
+            with self.assertRaises(ValueError):
+                consumir(planilha.importar(self.bd, arquivo, str(uuid4()), lambda _: None))
+
+    def test_quantidade_vazia_vale_zero_tambem_no_csv(self):
+        self.assertEqual(self.importar([linha(qtd='')])['novos'], 1)
+        self.assertEqual(self.motor.estoque.obter_produto(1).estoque_atual, 0)
 
     def test_adicionar_atualizar_custo_ponderado_precos_vazios_e_historico(self):
         self.assertEqual(self.importar([linha()])['novos'], 1)
@@ -78,7 +141,7 @@ class Planilhas(unittest.TestCase):
         self.assertEqual(self.bd.conexao.execute('SELECT sum(delta) FROM Eventos_Estoque WHERE produto_id=1').fetchone()[0], 5)
         logs = self.motor.estoque.listar_logs()
         self.assertEqual(len(logs), 2)
-        self.assertTrue(all('Importação CSV' in l['observacao'] for l in logs))
+        self.assertTrue(all('Importação de planilha' in l['observacao'] for l in logs))
         self.importar([linha(qtd='0', preco='30', custo='7')])
         p = self.motor.estoque.obter_produto(1)
         self.assertEqual((p.estoque_atual, p.custo_medio, p.preco_venda_base), (5, 7, 30))
