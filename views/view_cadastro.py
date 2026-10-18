@@ -7,12 +7,12 @@ Recursos:
     pelas palavras-chave (ex.: "shampoo" -> Cabelos, "hidratante" -> Corpo e Banho).
     A sugestão só é aplicada enquanto o usuário não escolheu manualmente;
   * seção para vincular um ou vários códigos de barras ao produto (1:N);
+  * atalho "Cadastrar em massa": modal com o modelo e o anexo da planilha, que
+    reutiliza a importação de Configurações (views/gestao_dados.py);
   * pode ser aberta já com um código pré-preenchido vindo da tela de operação.
 """
 from __future__ import annotations
 
-import sqlite3
-from models.seguranca import ERROS_OPERACIONAIS
 from utils.erros import ERROS_EXIBIVEIS, mensagem_falha
 
 import customtkinter as ctk
@@ -22,6 +22,7 @@ from utils.texto import sugerir_categoria, sugerir_marca
 from views.componentes import (
     COR_TEXTO_SUAVE, COR_TEXTO_SUCESSO, ListaCodigos, alertar, erro, informar,
 )
+from views.gestao_dados import DialogoCadastroMassa
 
 
 class ViewCadastro(ctk.CTkFrame):
@@ -41,9 +42,12 @@ class ViewCadastro(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=2, uniform="col")
         self.grid_rowconfigure(1, weight=1)
 
-        ctk.CTkLabel(self, text="Cadastro de Produto", anchor="w",
-                     font=ctk.CTkFont(size=24, weight="bold")
-                     ).grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        cabecalho = ctk.CTkFrame(self, fg_color="transparent")
+        cabecalho.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        ctk.CTkLabel(cabecalho, text="Cadastro de Produto", anchor="w",
+                     font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
+        ctk.CTkButton(cabecalho, text="Cadastrar em massa", height=36, width=180,
+                      command=self._cadastrar_em_massa).pack(side="right")
 
         # ---------------- Formulário (esquerda) ----------------
         formulario = ctk.CTkFrame(self, corner_radius=14)
@@ -188,6 +192,12 @@ class ViewCadastro(ctk.CTkFrame):
         self.entrada_codigo.delete(0, "end")
         self.entrada_codigo.focus_set()
         return True
+
+    # ------------------------------------------------------------------ #
+    # Cadastro em massa (planilha)
+    # ------------------------------------------------------------------ #
+    def _cadastrar_em_massa(self) -> None:
+        DialogoCadastroMassa(self.janela).mostrar()
 
     # ------------------------------------------------------------------ #
     # Salvar / limpar

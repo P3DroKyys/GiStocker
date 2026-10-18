@@ -16,6 +16,7 @@ from gestao.planilha import modelo
 from servico.transferencia import Transferencia
 from views.acesso import CampoSenha
 from views.componentes import COR_TEXTO_ERRO, COR_TEXTO_SUAVE, erro, informar
+from views.dialogos import SECUNDARIO, DialogoGiStocker
 from views.tarefas import cancelar_tarefas
 
 AVISO_EXPORTACAO = 'Atenção: O arquivo exportado conterá todos os seus dados sem criptografia. Guarde-o em local seguro.'
@@ -30,6 +31,9 @@ DESCRICOES = {
                 'ficam em zero nos produtos novos e preservam os atuais nos existentes. '
                 'Linhas inválidas serão ignoradas e listadas ao final.',
 }
+INSTRUCOES_PLANILHA = ('Baixe o modelo, preencha uma linha por produto na aba Produtos e escolha marca e '
+                       'categoria nas listas. As instruções estão na própria planilha. Quantidade vazia ou zero '
+                       'atualiza o cadastro sem adicionar estoque. Também é aceito CSV UTF-8 com as mesmas colunas.')
 
 
 def destino_seguro(caminho, extensao):
@@ -77,28 +81,18 @@ def rotulo(master, texto, **kwargs):
     return label
 
 
-class PainelGestao(ctk.CTkFrame):
-    def __init__(self, master, janela):
-        super().__init__(master, corner_radius=14)
-        self.janela = janela
-        self.pack(fill='x', padx=4, pady=(0, 14))
-        rotulo(self, 'Gestão de dados', font=ctk.CTkFont(size=17, weight='bold'))
-        rotulo(self, 'Backup completo do banco principal e importação de produtos. '
-                    'Encerre o laboratório de integrações antes de usar estas operações.', text_color=COR_TEXTO_SUAVE)
-        for tipo in ('exportar', 'restaurar'):
-            ctk.CTkButton(self, text=TITULOS[tipo], height=40, command=lambda t=tipo: self.abrir(t),
-                          state='normal' if hasattr(janela.preferencias, 'chamar') else 'disabled'
-                          ).pack(fill='x', padx=22, pady=5)
-        rotulo(self, 'Planilha de produtos · Excel', font=ctk.CTkFont(size=14, weight='bold'))
-        rotulo(self, 'Baixe o modelo, preencha uma linha por produto na aba Produtos e escolha marca e '
-                    'categoria nas listas. As instruções estão na própria planilha. Quantidade vazia ou zero '
-                    'atualiza o cadastro sem adicionar estoque. Também é aceito CSV UTF-8 com as mesmas colunas.',
-               text_color=COR_TEXTO_SUAVE)
-        ctk.CTkButton(self, text='Baixar planilha modelo', height=40, command=self.baixar_modelo
-                      ).pack(fill='x', padx=22, pady=5)
-        ctk.CTkButton(self, text=TITULOS['importar'], height=40, command=lambda: self.abrir('importar'),
-                      state='normal' if hasattr(janela.preferencias, 'chamar') else 'disabled'
-                      ).pack(fill='x', padx=22, pady=(5, 22))
+class AcoesGestao:
+    """Modelo, seletor de arquivo e abertura do DialogoGestao.
+
+    Compartilhado por Configurações (PainelGestao) e Cadastro (DialogoCadastroMassa):
+    as duas telas seguem a mesma rota de importação. Requer ``self.janela`` e que
+    ``self`` seja o widget pai dos seletores nativos.
+    """
+
+    @property
+    def servico_disponivel(self):
+        # Operações de dados passam pelo agente; sem ele, só o modelo pode ser baixado.
+        return hasattr(self.janela.preferencias, 'chamar')
 
     def baixar_modelo(self):
         caminho = self._selecionar(filedialog.asksaveasfilename, title='Salvar modelo de produtos',
@@ -115,8 +109,9 @@ class PainelGestao(ctk.CTkFrame):
             informar('Planilha modelo', 'Modelo salvo. Preencha a aba Produtos; a aba Instruções explica cada coluna.')
 
     def abrir(self, tipo):
+        """Devolve True quando o DialogoGestao foi aberto."""
         if self.janela.__dict__.get('_gestao_em_andamento', False):
-            return
+            return False
         if tipo == 'exportar':
             caminho = self._selecionar(filedialog.asksaveasfilename, title=TITULOS[tipo],
                 initialfile=f'GiStocker_{datetime.now():%Y%m%d_%H%M%S}.gsdados.json',
@@ -125,13 +120,15 @@ class PainelGestao(ctk.CTkFrame):
             caminho = self._selecionar(filedialog.askopenfilename, title=TITULOS[tipo],
                 filetypes=[('Backup GiStocker JSON', '*.json')] if tipo == 'restaurar' else [('Planilha Excel ou CSV UTF-8', '*.xlsx *.csv')])
         if not caminho:
-            return
+            return False
         try:
             if tipo == 'exportar':
                 caminho = str(destino_seguro(caminho, '.gsdados.json'))
             DialogoGestao(self.janela, tipo, caminho)
         except (OSError, ValueError) as exc:
             erro('Gestão de dados', str(exc))
+            return False
+        return True
 
     def _selecionar(self, seletor, **opcoes):
         if self.janela.__dict__.get('_gestao_em_andamento', False):
@@ -146,6 +143,61 @@ class PainelGestao(ctk.CTkFrame):
             return ''
         self.janela._ultimo_uso = time.monotonic()
         return caminho
+
+
+class PainelGestao(AcoesGestao, ctk.CTkFrame):
+    def __init__(self, master, janela):
+        super().__init__(master, corner_radius=14)
+        self.janela = janela
+        self.pack(fill='x', padx=4, pady=(0, 14))
+        rotulo(self, 'Gestão de dados', font=ctk.CTkFont(size=17, weight='bold'))
+        rotulo(self, 'Backup completo do banco principal e importação de produtos. '
+                    'Encerre o laboratório de integrações antes de usar estas operações.', text_color=COR_TEXTO_SUAVE)
+        estado = 'normal' if self.servico_disponivel else 'disabled'
+        for tipo in ('exportar', 'restaurar'):
+            ctk.CTkButton(self, text=TITULOS[tipo], height=40, command=lambda t=tipo: self.abrir(t),
+                          state=estado).pack(fill='x', padx=22, pady=5)
+        rotulo(self, 'Planilha de produtos · Excel', font=ctk.CTkFont(size=14, weight='bold'))
+        rotulo(self, INSTRUCOES_PLANILHA, text_color=COR_TEXTO_SUAVE)
+        ctk.CTkButton(self, text='Baixar planilha modelo', height=40, command=self.baixar_modelo
+                      ).pack(fill='x', padx=22, pady=5)
+        ctk.CTkButton(self, text=TITULOS['importar'], height=40, command=lambda: self.abrir('importar'),
+                      state=estado).pack(fill='x', padx=22, pady=(5, 22))
+
+
+class DialogoCadastroMassa(AcoesGestao, DialogoGiStocker):
+    """Atalho do Cadastro: modelo + anexo, entregando o arquivo ao DialogoGestao."""
+
+    def __init__(self, janela):
+        self.janela = janela
+        super().__init__(janela, 'Cadastrar em massa',
+                         'Cadastre ou atualize vários produtos de uma vez pela planilha, com a mesma '
+                         'importação de Configurações › Planilha de produtos.', 'confirmacao',
+                         destaque='Planilha de produtos')
+        self.cancelar.configure(text='Fechar')
+        self.aceitar.configure(text='Anexar planilha preenchida…', width=230,
+                               state='normal' if self.servico_disponivel else 'disabled')
+
+    def _montar_conteudo(self, corpo):
+        for linha, (titulo, texto) in enumerate((
+                ('1. Baixe a planilha modelo', INSTRUCOES_PLANILHA),
+                ('2. Anexe a planilha preenchida', 'Em seguida, confirme a senha atual e acompanhe o '
+                                                    'progresso. Linhas inválidas são listadas ao final.'))):
+            ctk.CTkLabel(corpo, text=titulo, font=ctk.CTkFont(size=13, weight='bold'), text_color=SECUNDARIO,
+                         anchor='w', corner_radius=0).grid(row=3 + 3 * linha, column=0, columnspan=2,
+                                                           sticky='ew', padx=24)
+            ctk.CTkLabel(corpo, text=texto, font=ctk.CTkFont(size=13), text_color=SECUNDARIO, anchor='w',
+                         justify='left', wraplength=410, corner_radius=0).grid(
+                             row=4 + 3 * linha, column=0, columnspan=2, sticky='ew', padx=24, pady=(2, 20 if linha else 8))
+        self.botao_modelo = ctk.CTkButton(corpo, text='Baixar planilha modelo', height=38,
+                                          command=self.baixar_modelo)
+        self.botao_modelo.grid(row=5, column=0, columnspan=2, sticky='w', padx=24, pady=(0, 14))
+
+    def _fechar(self, resultado):
+        # "Anexar" segue a mesma rota de Configurações; o modal sai quando o import abre.
+        if resultado and not self.abrir('importar'):
+            return 'break'
+        return super()._fechar(resultado)
 
 
 class DialogoGestao(ctk.CTkToplevel):

@@ -48,7 +48,7 @@ def imagem_simbolo(tipo: str, modo: int) -> Image.Image:
 
 
 class DialogoGiStocker(ctk.CTkToplevel):
-    def __init__(self, parent, titulo: str, mensagem: str, tipo: str):
+    def __init__(self, parent, titulo: str, mensagem: str, tipo: str, destaque: str | None = None):
         super().__init__(parent, fg_color=FUNDO)
         self.withdraw()
         self.resultado = False
@@ -77,7 +77,7 @@ class DialogoGiStocker(ctk.CTkToplevel):
                                     dark_image=imagem_simbolo(tipo, 1), size=(56, 56))
         ctk.CTkLabel(corpo, text='', image=self.simbolo, width=56, height=56,
                      corner_radius=0).grid(row=0, column=0, rowspan=2, padx=(22, 16), pady=(24, 14), sticky='n')
-        ctk.CTkLabel(corpo, text=ESTILOS[tipo][0], font=ctk.CTkFont(size=11, weight='bold'),
+        ctk.CTkLabel(corpo, text=destaque or ESTILOS[tipo][0], font=ctk.CTkFont(size=11, weight='bold'),
                      text_color=ESTILOS[tipo][1], anchor='w', corner_radius=0).grid(
                          row=0, column=1, sticky='ew', padx=(0, 22), pady=(24, 0))
         ctk.CTkLabel(corpo, text=titulo, font=ctk.CTkFont(size=21, weight='bold'),
